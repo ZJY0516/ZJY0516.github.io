@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
-    <loc>http://example.com/about/index.html</loc>
+    <loc>http://riverclouds.net/about/index.html</loc>
     
     <lastmod>2022-07-10</lastmod>
     
@@ -11,7 +11,7 @@
   </url>
   
   <url>
-    <loc>http://example.com/p/3875665868/</loc>
+    <loc>http://riverclouds.net/p/3875665868/</loc>
     
     <lastmod>2022-07-07</lastmod>
     
@@ -20,7 +20,7 @@
   </url>
   
   <url>
-    <loc>http://example.com/p/998056162/</loc>
+    <loc>http://riverclouds.net/p/998056162/</loc>
     
     <lastmod>2022-07-07</lastmod>
     
@@ -29,7 +29,7 @@
   </url>
   
   <url>
-    <loc>http://example.com/p/4173661689/</loc>
+    <loc>http://riverclouds.net/p/4173661689/</loc>
     
     <lastmod>2022-07-03</lastmod>
     
@@ -38,7 +38,7 @@
   </url>
   
   <url>
-    <loc>http://example.com/p/1243066711/</loc>
+    <loc>http://riverclouds.net/p/1243066711/</loc>
     
     <lastmod>2022-07-03</lastmod>
     
@@ -48,7 +48,7 @@
   
 
   <url>
-    <loc>http://example.com/</loc>
+    <loc>http://riverclouds.net/</loc>
     <lastmod>2022-07-10</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>

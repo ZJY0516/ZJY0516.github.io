@@ -3,11 +3,11 @@
   <title>ZJY&#39;s blog</title>
   
   
-  <link href="http://example.com/atom.xml" rel="self"/>
+  <link href="http://riverclouds.net/atom.xml" rel="self"/>
   
-  <link href="http://example.com/"/>
+  <link href="http://riverclouds.net/"/>
   <updated>2022-07-07T07:04:21.996Z</updated>
-  <id>http://example.com/</id>
+  <id>http://riverclouds.net/</id>
   
   <author>
     <name>朱雅江</name>
@@ -18,8 +18,8 @@
   
   <entry>
     <title>博客配置 LaTeX 过程中遇到的问题</title>
-    <link href="http://example.com/p/3875665868/"/>
-    <id>http://example.com/p/3875665868/</id>
+    <link href="http://riverclouds.net/p/3875665868/"/>
+    <id>http://riverclouds.net/p/3875665868/</id>
     <published>2022-07-07T06:43:45.000Z</published>
     <updated>2022-07-07T07:04:21.996Z</updated>
     
@@ -41,8 +41,8 @@
   
   <entry>
     <title>布朗运动</title>
-    <link href="http://example.com/p/998056162/"/>
-    <id>http://example.com/p/998056162/</id>
+    <link href="http://riverclouds.net/p/998056162/"/>
+    <id>http://riverclouds.net/p/998056162/</id>
     <published>2022-07-03T11:51:50.000Z</published>
     <updated>2022-07-07T06:42:22.075Z</updated>
     
@@ -65,8 +65,8 @@
   
   <entry>
     <title>分享一篇小故事</title>
-    <link href="http://example.com/p/4173661689/"/>
-    <id>http://example.com/p/4173661689/</id>
+    <link href="http://riverclouds.net/p/4173661689/"/>
+    <id>http://riverclouds.net/p/4173661689/</id>
     <published>2022-07-03T05:50:43.000Z</published>
     <updated>2022-07-03T17:00:39.273Z</updated>
     
@@ -89,8 +89,8 @@
   
   <entry>
     <title>Hello World</title>
-    <link href="http://example.com/p/1243066711/"/>
-    <id>http://example.com/p/1243066711/</id>
+    <link href="http://riverclouds.net/p/1243066711/"/>
+    <id>http://riverclouds.net/p/1243066711/</id>
     <published>2022-07-03T05:08:37.865Z</published>
     <updated>2022-07-03T16:59:47.616Z</updated>
     
