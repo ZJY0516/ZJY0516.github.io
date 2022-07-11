@@ -6,7 +6,7 @@
   <link href="http://riverclouds.net/atom.xml" rel="self"/>
   
   <link href="http://riverclouds.net/"/>
-  <updated>2022-07-07T07:04:21.996Z</updated>
+  <updated>2022-07-11T13:34:02.858Z</updated>
   <id>http://riverclouds.net/</id>
   
   <author>
@@ -15,6 +15,33 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>一些安利</title>
+    <link href="http://riverclouds.net/p/345905474/"/>
+    <id>http://riverclouds.net/p/345905474/</id>
+    <published>2022-07-11T13:20:19.000Z</published>
+    <updated>2022-07-11T13:34:02.858Z</updated>
+    
+    <content type="html"><![CDATA[<h2id="安利一些个人常看的内容不定期更新">安利一些个人常看的内容——不定期更新</h2><h3 id="科普">科普</h3><ul><li><p><a href="https://www.3blue1brown.com/">3Blue1Brown</a></p><p>非常厉害的数学科普博主。我个人是喜欢从直观上去理解知识的，3b1b用动画的方式呈现数学的美，所以他的视频非常对我胃口。从他的视频里，你可以直观的认识数学世界。 他在b站上也有<ahref="https://space.bilibili.com/88461692">中文频道</a>，感兴趣的读者可以去关注。</p></li><li><p><a href="https://changhai.org/">卢昌海的博客</a></p><p>面向有一定基础的大学生乃至更高学历的物理科普。</p></li><li><p><a href="https://space.bilibili.com/14871346">硬件茶谈</a></p><p>科普电脑硬件的博主，视频的动画做得非常优秀。期待他们的动画版装机教程。</p></li><li><p><a href="https://wuli.wiki/">小时物理</a></p><p>这是一个物理知识的百科。也许把它放在科普部分不太恰当，因为它做得太专业了。具体内容可以看它的<ahref="https://wuli.wiki/online/about.html">项目说明</a></p></li><li><p>史料搬运工</p><p>一个科普历史的微信公众号。有考据，有深度。</p></li></ul><h3 id="时事">时事</h3><ul><li><p><a href="https://space.bilibili.com/316568752">马前卒</a></p><p>虽然说马前卒团队的专业性不足，但冲塔这方面确实全网没有第二个了</p></li></ul><h3 id="数码评测">数码评测</h3><ul><li><p><a href="https://space.bilibili.com/477278">木羽说科技</a></p><p>手机圈为数不多敢说真话的up主了（虽然是只大鸽子）很在意手机系统的使用体验，所以和其他大部分评测up主的视频角度不同。</p></li><li><p><a href="https://space.bilibili.com/178047796">中正评测</a></p><p>笔记本评测up主。有自己的产业，所以评测的时候说话非常硬气，不会有春秋笔法。视频风格非常朴素直接。</p></li><li><p><a href="https://space.bilibili.com/287795639">短的发布会</a></p><p>视频内容主要是手机厂商发布会的吐槽和开车（大概是“企业文化”）在手机圈都是恰饭的大环境下，看看吐槽也挺好的。</p></li><li><p><ahref="https://space.bilibili.com/25876945">极客湾Geekerwan</a></p><p>内容特色为整活和硬核测评（指相对手机圈）</p></li></ul><h3 id="美食">美食</h3><ul><li><p><a href="https://space.bilibili.com/544336675">真探唐仁杰</a></p><p>原喜来登西餐厨师长，因此视频的专业性也会更强，言之有物。个人觉得观感很好。</p></li><li><p><a href="https://space.bilibili.com/39627524">食贫道</a></p><p>前央视记者，能做出来很有深度的美食视频。</p></li></ul><h3 id="魔术">魔术</h3><ul><li><p><a href="https://space.bilibili.com/641975239">刘谦</a></p><p>当时无愧的中国魔术第一人。发的魔术教学也很优秀，就是太鸽子了。</p></li></ul>]]></content>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;h2
+id=&quot;安利一些个人常看的内容不定期更新&quot;&gt;安利一些个人常看的内容——不定期更新&lt;/h2&gt;
+&lt;h3 id=&quot;科普&quot;&gt;科普&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;&lt;a</summary>
+        
+      
+    
+    
+    
+    
+  </entry>
   
   <entry>
     <title>博客配置 LaTeX 过程中遇到的问题</title>
