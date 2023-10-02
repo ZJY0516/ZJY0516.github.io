@@ -4,6 +4,19 @@
   
   
   <entry>
+    <title>Tailscale实现外网访问</title>
+    <link href="/p/3499136185/"/>
+    <url>/p/3499136185/</url>
+    
+    <content type="html"><![CDATA[<p>为了在校外访问 nas 和上面部署的服务如 jellyfin，笔者被安利了Tailscale。</p><p><a href="https://tailscale.com">Tailscale</a> 是一种基于 WireGuard 的虚拟组网工具，更易用，有全平台客户端。免费版支持最多20个设备，对于普通用户来说绰绰有余。</p><p>如果你更喜欢开源软件，那你可以尝试 Headscale。</p><p>安装和初步使用很简单，此处不再赘述。</p><p>下面主要讲一下遇到的问题。</p><p class="note note-warning">由于每个人的网络不尽相同，请勿照搬下文的配置</p><h2 id="jellyfin">Jellyfin</h2><p>首先可能无法访问 jellyfin，在 <a href="https://forum.tailscale.com/t/jellyfin-server/597">Tailscale 论坛</a>搜到的解决办法是在 jellyfin的网络配置中LAN网络加上<code>100.64.0.0/10</code>，可能是因为 jellyfin 默认不监听 Tailscale 使用的 ip。</p><h2 id="子网路由">子网路由</h2><p>虽然说解决了外网访问的问题，但是很不优雅：每次访问需要将校内使用的 ip 切换成 Tailscale 分配的 ip。</p><p>Tailscale提供了子网路由功能，更常见的使用场景是：需要访问某个局域网中的多个设备，但是将他们都加入组网太过麻烦并且不便于管理。</p><p>只需要在局域网内找到一个合适的设备（比如24小时开机），将其配置为Subnet Router。</p><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs shell">tailscale up --advertise-routes [ip]/32 --reset<br></code></pre></td></tr></table></figure><p>执行完上面的命令后还需要去网页端的管理界面手动打开路由选项。</p><p>因为笔者没有其他的设备需要访问，所以直接使用<code>[ip]/32</code>。</p><p>一个很自然的问题是，如果我还有另一个局域网，里面的若干个设备也想直接访问该局域网，应该如何配置呢？</p><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs shell">tailscale up --accept-routes=true --advertise-routes=192.168.1.0/24<br>tailscale up --accept-routes=true --advertise-routes=192.168.2.0/24<br></code></pre></td></tr></table></figure><p>遗憾的是群晖上的 Tailscale 并不支持 <code>accept-routes</code>参数，所以上面的命令我并没有尝试（当然我也没这个需求），具体群晖上还有哪些限制请参考<a href="https://tailscale.com/kb/1131/synology/">官方文档</a>。</p><h2 id="exit-node">exit-node</h2><p>出于某些原因，我们可能希望流量可以选择其他的节点作为出口，比如在校外使用校园网访问一些网站。</p><p>Tailscale可以将网络中的任意节点作为出口（IOS 设备除外）。</p><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs shell">tailscale up --advertise-exit-node<br></code></pre></td></tr></table></figure><p>同样，去网页端的管理界面手动打开该选项，此时其他节点上的客户端可以选择<code>use exit node</code>。</p><p>再也不用使用 EasyConnect这种软件了（<a href="https://github.com/lyc8503/EasierConnect">EasierConnect</a>也很好用）。</p>]]></content>
+    
+    
+    
+  </entry>
+  
+  
+  
+  <entry>
     <title>如何播放与处理蓝光原盘</title>
     <link href="/p/4035680537/"/>
     <url>/p/4035680537/</url>

@@ -2,6 +2,15 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>http://riverclouds.net/p/3499136185/</loc>
+    
+    <lastmod>2023-10-02</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
     <loc>http://riverclouds.net/p/4035680537/</loc>
     
     <lastmod>2023-08-05</lastmod>
@@ -130,7 +139,7 @@
 
   <url>
     <loc>http://riverclouds.net/</loc>
-    <lastmod>2023-08-07</lastmod>
+    <lastmod>2023-10-02</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
