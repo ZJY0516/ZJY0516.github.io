@@ -16,21 +16,21 @@
   <meta name="author" content="朱雅江">
   <meta name="keywords" content="">
   
-    <meta name="description" content="最近在学习python，加上比较闲，而且身边一些计科的同学也对 sicp 推崇备至，所以决定用 sicp 来学习python。 由于是自学，所以首先就是寻找课程资源。非常幸运的是，伯克利将这门课的所有课件、视频和作业代码全部放在了课程主页上。在b站寻找课程视频的时候还发现了一位学长做的 sicp 讲解视频（声音非常好听），可以去他的博客看看。课程网站和这位学长的博客都有非常详细的说明。 这门课的作">
+    <meta name="description" content="宏在c语言的底层开发中被大量使用，但是宏的可读性和可维护性都比较差，所以本文将其称之为“黑魔法”。 最简单的宏就是定义一些常数，比如 1#define PI 3.1415926 另一种宏的行为类似函数，比如MIN(x,y)。对于这个宏，我们可以很快写出一个简单版本 1#define MIN(x,y) x &lt; y ? x : y 但是我们很快就会遇到问题，比如说2 * MIN(3,4)的值是4">
 <meta property="og:type" content="article">
-<meta property="og:title" content="sicp自学指南">
-<meta property="og:url" content="http://riverclouds.net/p/18704793/index.html">
+<meta property="og:title" content="宏魔法">
+<meta property="og:url" content="http://riverclouds.net/p/1041100435/index.html">
 <meta property="og:site_name" content="riverclouds">
-<meta property="og:description" content="最近在学习python，加上比较闲，而且身边一些计科的同学也对 sicp 推崇备至，所以决定用 sicp 来学习python。 由于是自学，所以首先就是寻找课程资源。非常幸运的是，伯克利将这门课的所有课件、视频和作业代码全部放在了课程主页上。在b站寻找课程视频的时候还发现了一位学长做的 sicp 讲解视频（声音非常好听），可以去他的博客看看。课程网站和这位学长的博客都有非常详细的说明。 这门课的作">
+<meta property="og:description" content="宏在c语言的底层开发中被大量使用，但是宏的可读性和可维护性都比较差，所以本文将其称之为“黑魔法”。 最简单的宏就是定义一些常数，比如 1#define PI 3.1415926 另一种宏的行为类似函数，比如MIN(x,y)。对于这个宏，我们可以很快写出一个简单版本 1#define MIN(x,y) x &lt; y ? x : y 但是我们很快就会遇到问题，比如说2 * MIN(3,4)的值是4">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2022-09-19T10:47:46.000Z">
-<meta property="article:modified_time" content="2022-09-20T02:23:55.000Z">
+<meta property="article:published_time" content="2024-03-06T07:52:22.000Z">
+<meta property="article:modified_time" content="2024-03-06T07:52:58.845Z">
 <meta property="article:author" content="朱雅江">
 <meta name="twitter:card" content="summary_large_image">
   
   
   
-  <title>sicp自学指南 - riverclouds</title>
+  <title>宏魔法 - riverclouds</title>
 
   <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
 
@@ -204,7 +204,7 @@
       <div class="banner-text text-center fade-in-up">
         <div class="h2">
           
-            <span id="subtitle" data-typed-text="sicp自学指南"></span>
+            <span id="subtitle" data-typed-text="宏魔法"></span>
           
         </div>
 
@@ -215,8 +215,8 @@
     
       <span class="post-meta">
         <i class="iconfont icon-date-fill" aria-hidden="true"></i>
-        <time datetime="2022-09-19 18:47" pubdate>
-          2022年9月19日
+        <time datetime="2024-03-06 15:52" pubdate>
+          2024年3月6日
         </time>
       </span>
     
@@ -227,7 +227,7 @@
       <span class="post-meta mr-2">
         <i class="iconfont icon-chart"></i>
         
-          379 字
+          568 字
         
       </span>
     
@@ -238,7 +238,7 @@
         
         
         
-          4 分钟
+          5 分钟
         
       </span>
     
@@ -283,12 +283,12 @@
       <div class="container nopadding-x-md" id="board-ctn">
         <div id="board">
           <article class="post-content mx-auto">
-            <h1 id="seo-header">sicp自学指南</h1>
+            <h1 id="seo-header">宏魔法</h1>
             
               <p class="note note-info">
                 
                   
-                    本文最后更新于：2022年9月20日
+                    本文最后更新于：2024年3月6日
                   
                 
               </p>
@@ -296,10 +296,23 @@
             
               <div class="markdown-body">
                 
-                <p>最近在学习<code>python</code>，<del>加上比较闲</del>，而且身边一些计科的同学也对 sicp 推崇备至，所以决定用 sicp 来学习<code>python</code>。</p>
-<p>由于是自学，所以首先就是寻找课程资源。非常幸运的是，伯克利将这门课的所有课件、视频和作业代码全部放在了<a target="_blank" rel="noopener" href="https://cs61a.org/">课程主页</a>上。在b站寻找课程视频的时候还发现了一位学长做的 sicp 讲解视频（声音非常好听），可以去他的<a target="_blank" rel="noopener" href="https://blog.cuijiacai.com/sicp/">博客</a>看看。课程网站和这位学长的博客都有非常详细的说明。</p>
-<p>这门课的作业分为<code>lab</code>，<code>hw</code>，<code>proj</code>，都可以用伯克利的 OK 程序来判断正误，Windows 环境下需要将运行 OK 的命令由<code>python3</code>改为<code>python</code>，注意要加上<code>--local</code>参数，否则需要验证你的伯克利学生身份（<del>伯克利的学生也不会看到我的博客对吧</del>）。</p>
-<p>至于教材，<del>我觉得看不看都可以</del>，原版是用的<code>scheme</code>，伯克利用<code>python</code><a target="_blank" rel="noopener" href="https://www-inst.eecs.berkeley.edu//~cs61a/sp12/book/">重写了这本书</a>，也有国人将其翻译成了<a target="_blank" rel="noopener" href="https://wizardforcel.gitbooks.io/sicp-py/content/">中文</a>，<del>我觉得读起来很别扭</del>。</p>
+                <p>宏在c语言的底层开发中被大量使用，但是宏的可读性和可维护性都比较差，所以本文将其称之为“黑魔法”。</p>
+<p>最简单的宏就是定义一些常数，比如</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">define</span> PI 3.1415926</span><br></code></pre></td></tr></table></figure>
+<p>另一种宏的行为类似函数，比如<code>MIN(x,y)</code>。对于这个宏，我们可以很快写出一个简单版本</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">define</span> MIN(x,y) x &lt; y ? x : y</span><br></code></pre></td></tr></table></figure>
+<p>但是我们很快就会遇到问题，比如说<code>2 * MIN(3,4)</code>的值是4,而不是我们预期的6。把宏展开以后我们就知道发生了什么</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-number">2</span> * <span class="hljs-number">3</span> &lt; <span class="hljs-number">4</span> ? <span class="hljs-number">3</span> : <span class="hljs-number">4</span>;<br></code></pre></td></tr></table></figure>
+<p>运算优先级展开前后不相符导致了问题，加括号就可以了嘛。</p>
+<p>所以我们可以写出第二个版本</p>
+<figure class="highlight lisp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs lisp">#define MIN(<span class="hljs-name">x</span>,y) ((<span class="hljs-name">x</span>) &lt; (<span class="hljs-name">y</span>) ? (<span class="hljs-name">x</span>) : (<span class="hljs-name">y</span>))<br></code></pre></td></tr></table></figure>
+<p>更进一步地，我们把<code>x</code>和<code>y</code>也加上了括号。</p>
+<p>还没结束，考虑下面的代码</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">int</span> a = <span class="hljs-number">1</span>;<br>b = MIN(a++, <span class="hljs-number">3</span>)<br><span class="hljs-comment">// a=3, b=2</span><br>b = ((a++) &lt; (<span class="hljs-number">3</span>) ? (a++) : (<span class="hljs-number">3</span>))<br></code></pre></td></tr></table></figure>
+<p><code>a</code>进行了两次自增，改变了原来的逻辑。</p>
+<p>我们可以借助GNU C扩展来解决这个问题。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">define</span> min(a,b)             \</span><br><span class="hljs-meta">(&#123;                           \</span><br><span class="hljs-meta">    __typeof__ (a) _a = (a); \</span><br><span class="hljs-meta">    __typeof__ (b) _b = (b); \</span><br><span class="hljs-meta">    _a &lt; _b ? _a : _b;       \</span><br><span class="hljs-meta">&#125;)</span><br></code></pre></td></tr></table></figure>
+<p><code>(&#123;...&#125;)</code>是GNU C的赋值扩展，会将最后一次的表达式的赋值作为返回。</p>
 
                 
               </div>
@@ -319,18 +332,12 @@
                   <article class="post-prev col-6">
                     
                     
-                      <a href="/p/4051100340/" title="破解科学文库文档加密">
-                        <i class="iconfont icon-arrowleft"></i>
-                        <span class="hidden-mobile">破解科学文库文档加密</span>
-                        <span class="visible-mobile">上一篇</span>
-                      </a>
-                    
                   </article>
                   <article class="post-next col-6">
                     
                     
-                      <a href="/p/1119919321/" title="年轻人的第一台nas">
-                        <span class="hidden-mobile">年轻人的第一台nas</span>
+                      <a href="/p/3499136185/" title="Tailscale实现外网访问">
+                        <span class="hidden-mobile">Tailscale实现外网访问</span>
                         <span class="visible-mobile">下一篇</span>
                         <i class="iconfont icon-arrowright"></i>
                       </a>

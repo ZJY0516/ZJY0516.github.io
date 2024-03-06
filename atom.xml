@@ -6,7 +6,7 @@
   <link href="http://riverclouds.net/atom.xml" rel="self"/>
   
   <link href="http://riverclouds.net/"/>
-  <updated>2023-10-02T17:28:32.339Z</updated>
+  <updated>2024-03-06T07:52:58.845Z</updated>
   <id>http://riverclouds.net/</id>
   
   <author>
@@ -15,6 +15,31 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>宏魔法</title>
+    <link href="http://riverclouds.net/p/1041100435/"/>
+    <id>http://riverclouds.net/p/1041100435/</id>
+    <published>2024-03-06T07:52:22.000Z</published>
+    <updated>2024-03-06T07:52:58.845Z</updated>
+    
+    <content type="html"><![CDATA[<p>宏在c语言的底层开发中被大量使用，但是宏的可读性和可维护性都比较差，所以本文将其称之为“黑魔法”。</p><p>最简单的宏就是定义一些常数，比如</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">define</span> PI 3.1415926</span><br></code></pre></td></tr></table></figure><p>另一种宏的行为类似函数，比如<code>MIN(x,y)</code>。对于这个宏，我们可以很快写出一个简单版本</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">define</span> MIN(x,y) x &lt; y ? x : y</span><br></code></pre></td></tr></table></figure><p>但是我们很快就会遇到问题，比如说<code>2 * MIN(3,4)</code>的值是4,而不是我们预期的6。把宏展开以后我们就知道发生了什么</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-number">2</span> * <span class="hljs-number">3</span> &lt; <span class="hljs-number">4</span> ? <span class="hljs-number">3</span> : <span class="hljs-number">4</span>;<br></code></pre></td></tr></table></figure><p>运算优先级展开前后不相符导致了问题，加括号就可以了嘛。</p><p>所以我们可以写出第二个版本</p><figure class="highlight lisp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs lisp">#define MIN(<span class="hljs-name">x</span>,y) ((<span class="hljs-name">x</span>) &lt; (<span class="hljs-name">y</span>) ? (<span class="hljs-name">x</span>) : (<span class="hljs-name">y</span>))<br></code></pre></td></tr></table></figure><p>更进一步地，我们把<code>x</code>和<code>y</code>也加上了括号。</p><p>还没结束，考虑下面的代码</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">int</span> a = <span class="hljs-number">1</span>;<br>b = MIN(a++, <span class="hljs-number">3</span>)<br><span class="hljs-comment">// a=3, b=2</span><br>b = ((a++) &lt; (<span class="hljs-number">3</span>) ? (a++) : (<span class="hljs-number">3</span>))<br></code></pre></td></tr></table></figure><p><code>a</code>进行了两次自增，改变了原来的逻辑。</p><p>我们可以借助GNU C扩展来解决这个问题。</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">define</span> min(a,b)             \</span><br><span class="hljs-meta">(&#123;                           \</span><br><span class="hljs-meta">    __typeof__ (a) _a = (a); \</span><br><span class="hljs-meta">    __typeof__ (b) _b = (b); \</span><br><span class="hljs-meta">    _a &lt; _b ? _a : _b;       \</span><br><span class="hljs-meta">&#125;)</span><br></code></pre></td></tr></table></figure><p><code>(&#123;...&#125;)</code>是GNU C的赋值扩展，会将最后一次的表达式的赋值作为返回。</p>]]></content>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;p&gt;宏在c语言的底层开发中被大量使用，但是宏的可读性和可维护性都比较差，所以本文将其称之为“黑魔法”。&lt;/p&gt;
+&lt;p&gt;最简单的宏就是定义一些常数，比如&lt;/p&gt;
+&lt;figure class=&quot;highlight c&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td</summary>
+        
+      
+    
+    
+    
+    
+  </entry>
   
   <entry>
     <title>Tailscale实现外网访问</title>
