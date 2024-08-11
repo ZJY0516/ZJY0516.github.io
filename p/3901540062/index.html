@@ -16,21 +16,21 @@
   <meta name="author" content="朱雅江">
   <meta name="keywords" content="">
   
-    <meta name="description" content="宏在c语言的底层开发中被大量使用，但是宏的可读性和可维护性都比较差，所以本文将其称之为“宏魔法”。 最简单的宏就是定义一些常数，比如 1#define PI 3.1415926 另一种宏的行为类似函数，比如MIN(x,y)。对于这个宏，我们可以很快写出一个简单版本 1#define MIN(x,y) x &lt; y ? x : y 但是我们很快就会遇到问题，比如说2 * MIN(3,4)的值是4">
+    <meta name="description" content="本文是A fork() in the road的读书笔记  作者认为，fork 作为操作系统原语阻碍了系统研究；作为教育工作者，应该把 fork 当作历史的产物来教，而不是学生遇到的第一个进程创建机制。 fork 有一些优点：  简洁 避免并发，当然是在有线程和异步之前。  作为一个存在了50年的抽象，在当今fork也有很多缺点：  fork 已经不再简洁了，如果只有内存和文件描述符，这是十分优">
 <meta property="og:type" content="article">
-<meta property="og:title" content="宏魔法">
-<meta property="og:url" content="http://riverclouds.net/p/1041100435/index.html">
+<meta property="og:title" content="A fork() in the road">
+<meta property="og:url" content="http://riverclouds.net/p/3901540062/index.html">
 <meta property="og:site_name" content="riverclouds">
-<meta property="og:description" content="宏在c语言的底层开发中被大量使用，但是宏的可读性和可维护性都比较差，所以本文将其称之为“宏魔法”。 最简单的宏就是定义一些常数，比如 1#define PI 3.1415926 另一种宏的行为类似函数，比如MIN(x,y)。对于这个宏，我们可以很快写出一个简单版本 1#define MIN(x,y) x &lt; y ? x : y 但是我们很快就会遇到问题，比如说2 * MIN(3,4)的值是4">
+<meta property="og:description" content="本文是A fork() in the road的读书笔记  作者认为，fork 作为操作系统原语阻碍了系统研究；作为教育工作者，应该把 fork 当作历史的产物来教，而不是学生遇到的第一个进程创建机制。 fork 有一些优点：  简洁 避免并发，当然是在有线程和异步之前。  作为一个存在了50年的抽象，在当今fork也有很多缺点：  fork 已经不再简洁了，如果只有内存和文件描述符，这是十分优">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2024-03-06T07:52:22.000Z">
-<meta property="article:modified_time" content="2024-03-06T08:00:17.581Z">
+<meta property="article:published_time" content="2024-08-11T14:43:34.000Z">
+<meta property="article:modified_time" content="2024-08-11T14:51:52.276Z">
 <meta property="article:author" content="朱雅江">
 <meta name="twitter:card" content="summary_large_image">
   
   
   
-  <title>宏魔法 - riverclouds</title>
+  <title>A fork() in the road - riverclouds</title>
 
   <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
 
@@ -204,7 +204,7 @@
       <div class="banner-text text-center fade-in-up">
         <div class="h2">
           
-            <span id="subtitle" data-typed-text="宏魔法"></span>
+            <span id="subtitle" data-typed-text="A fork() in the road"></span>
           
         </div>
 
@@ -215,8 +215,8 @@
     
       <span class="post-meta">
         <i class="iconfont icon-date-fill" aria-hidden="true"></i>
-        <time datetime="2024-03-06 15:52" pubdate>
-          2024年3月6日
+        <time datetime="2024-08-11 22:43" pubdate>
+          2024年8月11日
         </time>
       </span>
     
@@ -227,7 +227,7 @@
       <span class="post-meta mr-2">
         <i class="iconfont icon-chart"></i>
         
-          568 字
+          1k 字
         
       </span>
     
@@ -238,7 +238,7 @@
         
         
         
-          5 分钟
+          9 分钟
         
       </span>
     
@@ -283,12 +283,12 @@
       <div class="container nopadding-x-md" id="board-ctn">
         <div id="board">
           <article class="post-content mx-auto">
-            <h1 id="seo-header">宏魔法</h1>
+            <h1 id="seo-header">A fork() in the road</h1>
             
               <p class="note note-info">
                 
                   
-                    本文最后更新于：2024年3月6日
+                    本文最后更新于：2024年8月11日
                   
                 
               </p>
@@ -296,23 +296,37 @@
             
               <div class="markdown-body">
                 
-                <p>宏在c语言的底层开发中被大量使用，但是宏的可读性和可维护性都比较差，所以本文将其称之为“宏魔法”。</p>
-<p>最简单的宏就是定义一些常数，比如</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">define</span> PI 3.1415926</span><br></code></pre></td></tr></table></figure>
-<p>另一种宏的行为类似函数，比如<code>MIN(x,y)</code>。对于这个宏，我们可以很快写出一个简单版本</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">define</span> MIN(x,y) x &lt; y ? x : y</span><br></code></pre></td></tr></table></figure>
-<p>但是我们很快就会遇到问题，比如说<code>2 * MIN(3,4)</code>的值是4,而不是我们预期的6。把宏展开以后我们就知道发生了什么</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-number">2</span> * <span class="hljs-number">3</span> &lt; <span class="hljs-number">4</span> ? <span class="hljs-number">3</span> : <span class="hljs-number">4</span>;<br></code></pre></td></tr></table></figure>
-<p>运算优先级展开前后不相符导致了问题，加括号就可以了嘛。</p>
-<p>所以我们可以写出第二个版本</p>
-<figure class="highlight lisp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs lisp">#define MIN(<span class="hljs-name">x</span>,y) ((<span class="hljs-name">x</span>) &lt; (<span class="hljs-name">y</span>) ? (<span class="hljs-name">x</span>) : (<span class="hljs-name">y</span>))<br></code></pre></td></tr></table></figure>
-<p>更进一步地，我们把<code>x</code>和<code>y</code>也加上了括号。</p>
-<p>还没结束，考虑下面的代码</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">int</span> a = <span class="hljs-number">1</span>;<br>b = MIN(a++, <span class="hljs-number">3</span>)<br><span class="hljs-comment">// a=3, b=2</span><br>b = ((a++) &lt; (<span class="hljs-number">3</span>) ? (a++) : (<span class="hljs-number">3</span>))<br></code></pre></td></tr></table></figure>
-<p><code>a</code>进行了两次自增，改变了原来的逻辑。</p>
-<p>我们可以借助GNU C扩展来解决这个问题。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">define</span> min(a,b)             \</span><br><span class="hljs-meta">(&#123;                           \</span><br><span class="hljs-meta">    __typeof__ (a) _a = (a); \</span><br><span class="hljs-meta">    __typeof__ (b) _b = (b); \</span><br><span class="hljs-meta">    _a &lt; _b ? _a : _b;       \</span><br><span class="hljs-meta">&#125;)</span><br></code></pre></td></tr></table></figure>
-<p><code>(&#123;...&#125;)</code>是GNU C的赋值扩展，会将最后一次的表达式的赋值作为返回。</p>
+                <p class="note note-primary">
+本文是A fork() in the road的读书笔记
+</p>
+<p>作者认为，fork 作为操作系统原语阻碍了系统研究；作为教育工作者，应该把 fork 当作历史的产物来教，而不是学生遇到的第一个进程创建机制。</p>
+<p>fork 有一些优点：</p>
+<ul>
+<li>简洁</li>
+<li>避免并发，当然是在有线程和异步之前。</li>
+</ul>
+<p>作为一个存在了50年的抽象，在当今fork也有很多缺点：</p>
+<ul>
+<li><p>fork 已经不再简洁了，如果只有内存和文件描述符，这是十分优雅的方案，但是操作系统的演化过程中，进程增加了更多的东西。如今 POSIX 标准列出了 fork 的25种特殊情况，包括文件锁，tracing 等等。</p></li>
+<li><p>Fork doesn’t compose。不适用于用户空间的很多抽象，比如说 Buffered IO</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">2</span>; i++) &#123;<br>    fork();<br>    <span class="hljs-built_in">printf</span>(<span class="hljs-string">&quot;Hello\n&quot;</span>);<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>在笔者的电脑上（ubuntu 22.04）直接运行该程序会输出6行<code>Hello</code>，但是管道给<code>wc -l</code>后结果是8 具体可以看jyy在B站的<a target="_blank" rel="noopener" href="https://www.bilibili.com/video/BV1zE421u7p4/">视频讲解</a></p></li>
+<li><p>线程安全问题。比如某个线程使用 malloc 获取到了堆区的锁，这个时候 fork，子进程一旦调用 malloc ，就会死锁。</p></li>
+<li><p>安全性，子进程会继承父进程的每一个字节</p></li>
+<li><p>性能低， copy-on-write 能够一定程度上解决这个问题，但是如今创建 copy-on-write 的映射也会造成一定程度的性能开销。</p></li>
+<li><p>可扩展性，fork需要复制状态机的每个方面，这意味着实现fork需要统一管理系统状态，这在宏内核里很容易实现，但是微内核中这很难。</p></li>
+<li><p>Fork encourages memory overcommit。作者认为，fork 时并不会请求所有的内存，而是 copy-on-write 复用父进程的内存，需要修改时再申请，这样会造成意料之外的 oom</p></li>
+<li><p>fork 并不适用于单地址空间，并且 fork 影响了很多并不基于 unix 系统的科研系统，他们要考虑是否实现fork 语义，若实现，则很可能影响其原有的设计，束缚原先的设计。</p></li>
+<li><p>fork 不适用于异构设备，毕竟没办法复制异构设备的状态。</p></li>
+<li><p>fork 会感染一整个系统，需要每一个层次都支持 fork</p></li>
+</ul>
+<p>作者认为，shell 很适合使用 fork，但是大多数的现代应用并不是 fork</p>
+<p>作者最后提出了一些愿景：</p>
+<ul>
+<li>弃用 fork</li>
+<li>改进比如 posix_spawn() 这样的替代品</li>
+<li>修改教学，就像没有人会在一开始教授<code>goto</code>，我们也不应该讲授如何使用 <code>fork</code> 创建进程</li>
+</ul>
 
                 
               </div>
@@ -332,18 +346,12 @@
                   <article class="post-prev col-6">
                     
                     
-                      <a href="/p/3901540062/" title="A fork() in the road">
-                        <i class="iconfont icon-arrowleft"></i>
-                        <span class="hidden-mobile">A fork() in the road</span>
-                        <span class="visible-mobile">上一篇</span>
-                      </a>
-                    
                   </article>
                   <article class="post-next col-6">
                     
                     
-                      <a href="/p/3499136185/" title="Tailscale实现外网访问">
-                        <span class="hidden-mobile">Tailscale实现外网访问</span>
+                      <a href="/p/1041100435/" title="宏魔法">
+                        <span class="hidden-mobile">宏魔法</span>
                         <span class="visible-mobile">下一篇</span>
                         <i class="iconfont icon-arrowright"></i>
                       </a>
