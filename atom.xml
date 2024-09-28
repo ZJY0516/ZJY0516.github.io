@@ -6,7 +6,7 @@
   <link href="http://riverclouds.net/atom.xml" rel="self"/>
   
   <link href="http://riverclouds.net/"/>
-  <updated>2024-08-11T14:51:52.276Z</updated>
+  <updated>2024-09-28T14:56:17.869Z</updated>
   <id>http://riverclouds.net/</id>
   
   <author>
@@ -15,6 +15,30 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>c23 typeof</title>
+    <link href="http://riverclouds.net/p/444892520/"/>
+    <id>http://riverclouds.net/p/444892520/</id>
+    <published>2024-09-28T14:55:41.000Z</published>
+    <updated>2024-09-28T14:56:17.869Z</updated>
+    
+    <content type="html"><![CDATA[<p>C23 标准新增了<code>typeof</code> 支持，其实就是<code>gcc</code>等编译器的扩展“转正”</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c">typeof(<span class="hljs-type">int</span>) a;<span class="hljs-comment">//等价于 int a</span><br>typeof(<span class="hljs-type">int</span>*) p;<span class="hljs-comment">//等价于 int* p</span><br>typeof(<span class="hljs-type">int</span>[<span class="hljs-number">3</span>]) arr;<span class="hljs-comment">//等价于 int arr[3]</span><br></code></pre></td></tr></table></figure><p>下面给出一个可能比较有用的使用方式</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">define</span> pointer(T)  typeof(T *)</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> array(T, N) typeof(T [N])</span><br><span class="hljs-built_in">array</span>(pointer(<span class="hljs-type">char</span>), <span class="hljs-number">4</span>) a;<br></code></pre></td></tr></table></figure><p>可读性远远优于<code>int(*a)[4]</code>。</p><p><code>typeof</code> 在 <code>linux</code> 内核开发中被大量使用，比如</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">/*</span><br><span class="hljs-comment"> * Check at compile time that something is of a particular type.</span><br><span class="hljs-comment"> * Always evaluates to 1 so you may use it easily in comparisons.</span><br><span class="hljs-comment"> */</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> typecheck(type,x) \</span><br><span class="hljs-meta">(&#123;  type __dummy; \</span><br><span class="hljs-meta">    typeof(x) __dummy2; \</span><br><span class="hljs-meta">    (void)(&amp;__dummy == &amp;__dummy2); \</span><br><span class="hljs-meta">    1; \</span><br><span class="hljs-meta">&#125;)</span><br><br><span class="hljs-comment">/*</span><br><span class="hljs-comment"> * Check at compile time that &#x27;function&#x27; is a certain type, or is a pointer</span><br><span class="hljs-comment"> * to that type (needs to use typedef for the function type.)</span><br><span class="hljs-comment"> */</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> typecheck_fn(type,function) \</span><br><span class="hljs-meta">(&#123;  typeof(type) __tmp = function; \</span><br><span class="hljs-meta">    (void)__tmp; \</span><br><span class="hljs-meta">&#125;)</span><br><br><span class="hljs-comment">/*</span><br><span class="hljs-comment"> * swap - swap value of @a and @b</span><br><span class="hljs-comment"> */</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> swap(a, b) \</span><br><span class="hljs-meta">    do &#123; typeof(a) __tmp = (a); (a) = (b); (b) = __tmp; &#125; while (0)</span><br><br><span class="hljs-comment">/**</span><br><span class="hljs-comment"> * container_of_const - cast a member of a structure out to the containing</span><br><span class="hljs-comment"> *structure and preserve the const-ness of the pointer</span><br><span class="hljs-comment"> * @ptr:the pointer to the member</span><br><span class="hljs-comment"> * @type:the type of the container struct this is embedded in.</span><br><span class="hljs-comment"> * @member:the name of the member within the struct.</span><br><span class="hljs-comment"> */</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> container_of_const(ptr, type, member)\</span><br><span class="hljs-meta">_Generic(ptr,\</span><br><span class="hljs-meta">const typeof(*(ptr)) *: ((const type *)container_of(ptr, type, member)),\</span><br><span class="hljs-meta">default: ((type *)container_of(ptr, type, member))\</span><br><span class="hljs-meta">)</span><br></code></pre></td></tr></table></figure><p>此外也可以参考笔者之前<a href="https://riverclouds.net/p/1041100435/">有关宏的文章</a>。</p>]]></content>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;p&gt;C23 标准新增了&lt;code&gt;typeof&lt;/code&gt; 支持，其实就是&lt;code&gt;gcc&lt;/code&gt;等编译器的扩展“转正”&lt;/p&gt;
+&lt;figure class=&quot;highlight c&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre&gt;&lt;span</summary>
+        
+      
+    
+    
+    
+    
+  </entry>
   
   <entry>
     <title>A fork() in the road</title>

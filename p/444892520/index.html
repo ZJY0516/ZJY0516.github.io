@@ -16,21 +16,21 @@
   <meta name="author" content="朱雅江">
   <meta name="keywords" content="">
   
-    <meta name="description" content="本文是A fork() in the road的读书笔记  作者认为，fork 作为操作系统原语阻碍了系统研究；作为教育工作者，应该把 fork 当作历史的产物来教，而不是学生遇到的第一个进程创建机制。 fork 有一些优点：  简洁 避免并发，当然是在有线程和异步之前。  作为一个存在了50年的抽象，在当今fork也有很多缺点：  fork 已经不再简洁了，如果只有内存和文件描述符，这是十分优">
+    <meta name="description" content="C23 标准新增了typeof 支持，其实就是gcc等编译器的扩展“转正” 123typeof(int) a;&#x2F;&#x2F;等价于 int atypeof(int*) p;&#x2F;&#x2F;等价于 int* ptypeof(int[3]) arr;&#x2F;&#x2F;等价于 int arr[3] 下面给出一个可能比较有用的使用方式 123#define pointer(T)  typeof(T *)#define array(T, N)">
 <meta property="og:type" content="article">
-<meta property="og:title" content="A fork() in the road">
-<meta property="og:url" content="http://riverclouds.net/p/3901540062/index.html">
+<meta property="og:title" content="c23 typeof">
+<meta property="og:url" content="http://riverclouds.net/p/444892520/index.html">
 <meta property="og:site_name" content="riverclouds">
-<meta property="og:description" content="本文是A fork() in the road的读书笔记  作者认为，fork 作为操作系统原语阻碍了系统研究；作为教育工作者，应该把 fork 当作历史的产物来教，而不是学生遇到的第一个进程创建机制。 fork 有一些优点：  简洁 避免并发，当然是在有线程和异步之前。  作为一个存在了50年的抽象，在当今fork也有很多缺点：  fork 已经不再简洁了，如果只有内存和文件描述符，这是十分优">
+<meta property="og:description" content="C23 标准新增了typeof 支持，其实就是gcc等编译器的扩展“转正” 123typeof(int) a;&#x2F;&#x2F;等价于 int atypeof(int*) p;&#x2F;&#x2F;等价于 int* ptypeof(int[3]) arr;&#x2F;&#x2F;等价于 int arr[3] 下面给出一个可能比较有用的使用方式 123#define pointer(T)  typeof(T *)#define array(T, N)">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2024-08-11T14:43:34.000Z">
-<meta property="article:modified_time" content="2024-08-11T14:51:52.276Z">
+<meta property="article:published_time" content="2024-09-28T14:55:41.000Z">
+<meta property="article:modified_time" content="2024-09-28T14:56:17.869Z">
 <meta property="article:author" content="朱雅江">
 <meta name="twitter:card" content="summary_large_image">
   
   
   
-  <title>A fork() in the road - riverclouds</title>
+  <title>c23 typeof - riverclouds</title>
 
   <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
 
@@ -204,7 +204,7 @@
       <div class="banner-text text-center fade-in-up">
         <div class="h2">
           
-            <span id="subtitle" data-typed-text="A fork() in the road"></span>
+            <span id="subtitle" data-typed-text="c23 typeof"></span>
           
         </div>
 
@@ -215,8 +215,8 @@
     
       <span class="post-meta">
         <i class="iconfont icon-date-fill" aria-hidden="true"></i>
-        <time datetime="2024-08-11 22:43" pubdate>
-          2024年8月11日
+        <time datetime="2024-09-28 22:55" pubdate>
+          2024年9月28日
         </time>
       </span>
     
@@ -227,7 +227,7 @@
       <span class="post-meta mr-2">
         <i class="iconfont icon-chart"></i>
         
-          1k 字
+          1.3k 字
         
       </span>
     
@@ -238,7 +238,7 @@
         
         
         
-          9 分钟
+          11 分钟
         
       </span>
     
@@ -283,12 +283,12 @@
       <div class="container nopadding-x-md" id="board-ctn">
         <div id="board">
           <article class="post-content mx-auto">
-            <h1 id="seo-header">A fork() in the road</h1>
+            <h1 id="seo-header">c23 typeof</h1>
             
               <p class="note note-info">
                 
                   
-                    本文最后更新于：2024年8月11日
+                    本文最后更新于：2024年9月28日
                   
                 
               </p>
@@ -296,37 +296,14 @@
             
               <div class="markdown-body">
                 
-                <p class="note note-primary">
-本文是A fork() in the road的读书笔记
-</p>
-<p>作者认为，fork 作为操作系统原语阻碍了系统研究；作为教育工作者，应该把 fork 当作历史的产物来教，而不是学生遇到的第一个进程创建机制。</p>
-<p>fork 有一些优点：</p>
-<ul>
-<li>简洁</li>
-<li>避免并发，当然是在有线程和异步之前。</li>
-</ul>
-<p>作为一个存在了50年的抽象，在当今fork也有很多缺点：</p>
-<ul>
-<li><p>fork 已经不再简洁了，如果只有内存和文件描述符，这是十分优雅的方案，但是操作系统的演化过程中，进程增加了更多的东西。如今 POSIX 标准列出了 fork 的25种特殊情况，包括文件锁，tracing 等等。</p></li>
-<li><p>Fork doesn’t compose。不适用于用户空间的很多抽象，比如说 Buffered IO</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">2</span>; i++) &#123;<br>    fork();<br>    <span class="hljs-built_in">printf</span>(<span class="hljs-string">&quot;Hello\n&quot;</span>);<br>&#125;<br></code></pre></td></tr></table></figure>
-<p>在笔者的电脑上（ubuntu 22.04）直接运行该程序会输出6行<code>Hello</code>，但是管道给<code>wc -l</code>后结果是8 具体可以看jyy在B站的<a target="_blank" rel="noopener" href="https://www.bilibili.com/video/BV1zE421u7p4/">视频讲解</a></p></li>
-<li><p>线程安全问题。比如某个线程使用 malloc 获取到了堆区的锁，这个时候 fork，子进程一旦调用 malloc ，就会死锁。</p></li>
-<li><p>安全性，子进程会继承父进程的每一个字节</p></li>
-<li><p>性能低， copy-on-write 能够一定程度上解决这个问题，但是如今创建 copy-on-write 的映射也会造成一定程度的性能开销。</p></li>
-<li><p>可扩展性，fork需要复制状态机的每个方面，这意味着实现fork需要统一管理系统状态，这在宏内核里很容易实现，但是微内核中这很难。</p></li>
-<li><p>Fork encourages memory overcommit。作者认为，fork 时并不会请求所有的内存，而是 copy-on-write 复用父进程的内存，需要修改时再申请，这样会造成意料之外的 oom</p></li>
-<li><p>fork 并不适用于单地址空间，并且 fork 影响了很多并不基于 unix 系统的科研系统，他们要考虑是否实现fork 语义，若实现，则很可能影响其原有的设计，束缚原先的设计。</p></li>
-<li><p>fork 不适用于异构设备，毕竟没办法复制异构设备的状态。</p></li>
-<li><p>fork 会感染一整个系统，需要每一个层次都支持 fork</p></li>
-</ul>
-<p>作者认为，shell 很适合使用 fork，但是大多数的现代应用并不是 fork</p>
-<p>作者最后提出了一些愿景：</p>
-<ul>
-<li>弃用 fork</li>
-<li>改进比如 posix_spawn() 这样的替代品</li>
-<li>修改教学，就像没有人会在一开始教授<code>goto</code>，我们也不应该讲授如何使用 <code>fork</code> 创建进程</li>
-</ul>
+                <p>C23 标准新增了<code>typeof</code> 支持，其实就是<code>gcc</code>等编译器的扩展“转正”</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c">typeof(<span class="hljs-type">int</span>) a;<span class="hljs-comment">//等价于 int a</span><br>typeof(<span class="hljs-type">int</span>*) p;<span class="hljs-comment">//等价于 int* p</span><br>typeof(<span class="hljs-type">int</span>[<span class="hljs-number">3</span>]) arr;<span class="hljs-comment">//等价于 int arr[3]</span><br></code></pre></td></tr></table></figure>
+<p>下面给出一个可能比较有用的使用方式</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">define</span> pointer(T)  typeof(T *)</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> array(T, N) typeof(T [N])</span><br><span class="hljs-built_in">array</span>(pointer(<span class="hljs-type">char</span>), <span class="hljs-number">4</span>) a;<br></code></pre></td></tr></table></figure>
+<p>可读性远远优于<code>int(*a)[4]</code>。</p>
+<p><code>typeof</code> 在 <code>linux</code> 内核开发中被大量使用，比如</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">/*</span><br><span class="hljs-comment"> * Check at compile time that something is of a particular type.</span><br><span class="hljs-comment"> * Always evaluates to 1 so you may use it easily in comparisons.</span><br><span class="hljs-comment"> */</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> typecheck(type,x) \</span><br><span class="hljs-meta">(&#123;  type __dummy; \</span><br><span class="hljs-meta">    typeof(x) __dummy2; \</span><br><span class="hljs-meta">    (void)(&amp;__dummy == &amp;__dummy2); \</span><br><span class="hljs-meta">    1; \</span><br><span class="hljs-meta">&#125;)</span><br><br><span class="hljs-comment">/*</span><br><span class="hljs-comment"> * Check at compile time that &#x27;function&#x27; is a certain type, or is a pointer</span><br><span class="hljs-comment"> * to that type (needs to use typedef for the function type.)</span><br><span class="hljs-comment"> */</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> typecheck_fn(type,function) \</span><br><span class="hljs-meta">(&#123;  typeof(type) __tmp = function; \</span><br><span class="hljs-meta">    (void)__tmp; \</span><br><span class="hljs-meta">&#125;)</span><br><br><span class="hljs-comment">/*</span><br><span class="hljs-comment"> * swap - swap value of @a and @b</span><br><span class="hljs-comment"> */</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> swap(a, b) \</span><br><span class="hljs-meta">    do &#123; typeof(a) __tmp = (a); (a) = (b); (b) = __tmp; &#125; while (0)</span><br><br><span class="hljs-comment">/**</span><br><span class="hljs-comment"> * container_of_const - cast a member of a structure out to the containing</span><br><span class="hljs-comment"> *			structure and preserve the const-ness of the pointer</span><br><span class="hljs-comment"> * @ptr:		the pointer to the member</span><br><span class="hljs-comment"> * @type:		the type of the container struct this is embedded in.</span><br><span class="hljs-comment"> * @member:		the name of the member within the struct.</span><br><span class="hljs-comment"> */</span><br><span class="hljs-meta">#<span class="hljs-keyword">define</span> container_of_const(ptr, type, member)				\</span><br><span class="hljs-meta">	_Generic(ptr,							\</span><br><span class="hljs-meta">		const typeof(*(ptr)) *: ((const type *)container_of(ptr, type, member)),\</span><br><span class="hljs-meta">		default: ((type *)container_of(ptr, type, member))	\</span><br><span class="hljs-meta">	)</span><br></code></pre></td></tr></table></figure>
+<p>此外也可以参考笔者之前<a href="https://riverclouds.net/p/1041100435/">有关宏的文章</a>。</p>
 
                 
               </div>
@@ -346,18 +323,12 @@
                   <article class="post-prev col-6">
                     
                     
-                      <a href="/p/444892520/" title="c23 typeof">
-                        <i class="iconfont icon-arrowleft"></i>
-                        <span class="hidden-mobile">c23 typeof</span>
-                        <span class="visible-mobile">上一篇</span>
-                      </a>
-                    
                   </article>
                   <article class="post-next col-6">
                     
                     
-                      <a href="/p/1041100435/" title="宏魔法">
-                        <span class="hidden-mobile">宏魔法</span>
+                      <a href="/p/3901540062/" title="A fork() in the road">
+                        <span class="hidden-mobile">A fork() in the road</span>
                         <span class="visible-mobile">下一篇</span>
                         <i class="iconfont icon-arrowright"></i>
                       </a>
