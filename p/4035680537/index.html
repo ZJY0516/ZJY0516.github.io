@@ -24,7 +24,7 @@
 <meta property="og:description" content="什么是蓝光原盘 蓝光光盘（英语：Blu-ray Disc，缩写：BD）是DVD之后的下一代光盘格式之一，用以存储高质量的影音以及高容量的资料。2015年蓝光光碟联盟公布了新的 UHD（Ultra HD Blu-ray）标准，支持 4k 视频。各个电影发行的光盘（影碟）是一般影音爱好者能接触到的最高品质资源，无论是画质还是音质都远超流媒体资源，一般还会附带花絮。 https:&#x2F;&#x2F;www.blu-ra">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2023-08-05T08:47:03.000Z">
-<meta property="article:modified_time" content="2023-08-05T23:59:46.322Z">
+<meta property="article:modified_time" content="2024-11-10T03:17:44.065Z">
 <meta property="article:author" content="朱雅江">
 <meta name="twitter:card" content="summary_large_image">
   
@@ -227,7 +227,7 @@
       <span class="post-meta mr-2">
         <i class="iconfont icon-chart"></i>
         
-          2.7k 字
+          3.7k 字
         
       </span>
     
@@ -238,7 +238,7 @@
         
         
         
-          23 分钟
+          32 分钟
         
       </span>
     
@@ -288,7 +288,7 @@
               <p class="note note-info">
                 
                   
-                    本文最后更新于：2023年8月6日
+                    本文最后更新于：2024年11月10日
                   
                 
               </p>
@@ -386,6 +386,22 @@
 <li><code>-map 1:a</code> 从输入索引 #1（第二个输入）中选择所有音频流。</li>
 <li><code>-map 3:s:4</code> 从输入索引#3（第四个输入）选择字幕流索引#4（第五个字幕流）。</li>
 <li><code>-map 0 -map -0:s</code> 将从输入索引 #0（第一个输入）中选择除字幕之外的所有流。</li>
+</ul>
+<h2 id="烧录pgs字幕">烧录PGS字幕</h2>
+<p>有些时候出于兼容性考虑，我们会希望直接将原盘自带的PGS格式字幕烧录进视频，而不是内嵌（吐槽一下，互联网上竟然很难搜到这种需求）</p>
+<p>笔者这里给出自己的解决方案：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-meta">#!/bin/bash</span><br><span class="hljs-comment"># convert mkv with pgs subtite to mp4 with subtitle burnt in</span><br><br><span class="hljs-keyword">if</span> [ <span class="hljs-variable">$#</span> -lt 2 ]; <span class="hljs-keyword">then</span><br>	<span class="hljs-built_in">echo</span> <span class="hljs-string">&quot;Usage: <span class="hljs-variable">$0</span> input.mkv subtitle_stream [output.mp4]&quot;</span><br>	<span class="hljs-built_in">echo</span> <span class="hljs-string">&quot;Example: <span class="hljs-variable">$0</span> input.mkv 2 output.mp4&quot;</span><br>	<span class="hljs-built_in">exit</span> 1<br><span class="hljs-keyword">fi</span><br><br>input_file=<span class="hljs-string">&quot;<span class="hljs-variable">$1</span>&quot;</span><br>subtitle_stream=<span class="hljs-string">&quot;<span class="hljs-variable">$2</span>&quot;</span><br><br><span class="hljs-keyword">if</span> [ <span class="hljs-variable">$#</span> -ge 3 ]; <span class="hljs-keyword">then</span><br>	output_file=<span class="hljs-string">&quot;<span class="hljs-variable">$3</span>&quot;</span><br><span class="hljs-keyword">else</span><br>	output_file=<span class="hljs-string">&quot;<span class="hljs-variable">$&#123;input_file%.*&#125;</span>.mp4&quot;</span><br><span class="hljs-keyword">fi</span><br><br>ffmpeg -i <span class="hljs-string">&quot;<span class="hljs-variable">$input_file</span>&quot;</span> \<br>	-filter_complex <span class="hljs-string">&quot;[0:v:0][0:<span class="hljs-variable">$&#123;subtitle_stream&#125;</span>]overlay&quot;</span> \<br>	-crf 18 -preset slow -acodec copy -sn <span class="hljs-string">&quot;<span class="hljs-variable">$output_file</span>&quot;</span><br></code></pre></td></tr></table></figure>
+<ul>
+<li><p><code>-filter_complex "[0:v:0][0:$&#123;subtitle_stream&#125;]overlay"</code>：这是用于将字幕烧录到视频上的滤镜。解释如下：</p>
+<ul>
+<li><code>[0:v:0]</code>：表示第一个视频流（索引 0 的文件中的第一个视频流）。</li>
+<li><code>[0:$&#123;subtitle_stream&#125;]</code>：表示文件中需要烧录的字幕流，通过 <code>[0:$&#123;subtitle_stream&#125;]</code> 引用该流。</li>
+<li><code>overlay</code>：<code>overlay</code> 滤镜将两个流叠加，将 PGS 字幕合并到视频上，实现烧录效果。</li>
+</ul></li>
+<li><p><code>-crf 18</code>：指定视频质量，数值越低质量越高，18 是常用高质量值。</p></li>
+<li><p><code>-preset slow</code>：表示编码速度的选项，<code>slow</code> 提供更高的压缩效率（但需要更长时间）。</p></li>
+<li><p><code>-acodec copy</code>：直接复制音频流，无需重新编码。</p></li>
+<li><p><code>-sn</code>：去掉所有字幕流，因为字幕已经烧录在视频上。</p></li>
 </ul>
 
                 
