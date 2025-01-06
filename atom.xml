@@ -6,7 +6,7 @@
   <link href="http://riverclouds.net/atom.xml" rel="self"/>
   
   <link href="http://riverclouds.net/"/>
-  <updated>2024-11-21T13:05:25.286Z</updated>
+  <updated>2025-01-06T05:18:07.911Z</updated>
   <id>http://riverclouds.net/</id>
   
   <author>
@@ -15,6 +15,32 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>读论文：Long Exposure: Accelerating Parameter-Efficient Fine-Tuning for LLMs under Shadowy Sparsity</title>
+    <link href="http://riverclouds.net/p/3074410774/"/>
+    <id>http://riverclouds.net/p/3074410774/</id>
+    <published>2025-01-06T05:03:10.000Z</published>
+    <updated>2025-01-06T05:18:07.911Z</updated>
+    
+    <content type="html"><![CDATA[<ul><li>发表会议：SC 2024</li><li>作者：Tuowei Wang, Kun Li, Zixu Hao, Donglin Bai, Ju Ren, Yaoxue Zhang, Ting Cao, Mao Yan</li><li>单位：Microsoft Research and Tsinghua University</li></ul><p><strong>概述：</strong></p><ul><li>利用稀疏性加速大语言模型微调</li></ul><h2 id="问题">问题</h2><p>为了更好地处理特定的下游任务，通常需要微调现有的大模型。为了减少微调的时间，可以冻结原有的模型参数，加入一些新的层，只更新新加入的参数：parameter-efficient finetuning (PEFT)，比如LoRA。相比全量微调，LoRA将可训练参数数量减少到1%以下。</p><p>但是训练参数量的下降与减少的时间相比不匹配，现在的瓶颈在于前向和反向，也就是说LoRA并不省计算，只节省了更新参数的步骤。</p><p><img src="https://s3.bmp.ovh/imgs/2025/01/06/498ba641a2d9b6e6.png" /></p><p>如何利用<strong>稀疏性</strong>加速这一过程？</p><ul><li>推理时只有前向</li><li>可以数学上证明前向的稀疏性也存在于反向阶段</li></ul><h2 id="挑战">挑战</h2><h3 id="如何捕捉微调过程中的稀疏性">如何捕捉微调过程中的稀疏性</h3><p>一般推理时只用处理一个 token，而微调时同时处理多个token，相当于激活的权重是单个token的并集。</p><p>这样稀疏性会被掩盖，作者将其命名为Shaodwy Sparsity</p><p><img src="https://s3.bmp.ovh/imgs/2025/01/06/f1f26b1f51eb51a9.png" /></p><p>之前的工作缺乏对per head和per token不同稀疏性的利用。</p><p>下面的问题就是如何<strong>高效准确</strong>地预测稀疏性和根据稀疏性提高性能。</p><h2 id="long-exposure">Long Exposure</h2><p>Long Exposure包括两部分，<strong>Predictor</strong>和<strong>Operator</strong></p><p><img src="https://s3.bmp.ovh/imgs/2025/01/06/a763afc93ac94894.png" /></p><p>核心是<strong>对于给定的输入，为每个注意力头独立确定最佳的稀疏掩码</strong>，根据不同的稀疏模式调用不同的稀疏算子。</p><p>MLP部分与之类似，确定每个token的稀疏模式</p><h3 id="predictor">Predictor</h3><p><img src="https://s3.bmp.ovh/imgs/2025/01/06/91b441ca075b2836.png" /></p><h4 id="效率"><strong>效率</strong></h4><p>Attention：作者设计了一个神经网络，用来估计原始网络的输出值。</p><p>MLP：使用神经网络预测某一行/列可能被激活</p><p><strong>小于给定值的视为不激活（图中轻橙色）</strong></p><h4 id="正确性"><strong>正确性</strong></h4><p><strong>预测器使用推理时的数据离线训练，在微调的时候可能产生数据偏移。</strong></p><p>为了减小误差</p><ul><li>训练的时候增加噪声</li><li>更注重recall而不是precision（预测稀疏性的时候多预测激活的神经元比遗漏更好）</li></ul><h4 id="dynamic-aware-operator">DYNAMIC-AWARE OPERATOR</h4><p>Attention的稀疏性可以由几种基本的稀疏模式组合得到，所以可以在计算之前得到矩阵的布局并做相应的转换，在正式计算的时候组合起来。</p><p>MLP的优化相对简单，按照行/列的粒度加载和计算。</p><p><img src="https://s3.bmp.ovh/imgs/2025/01/06/2c09d4864825f535.png" /></p><h2 id="性能测试">性能测试</h2><p>作者测试了端到端的微调性能，速度和内存占用上都有一定的优势。</p><p><img src="https://s3.bmp.ovh/imgs/2025/01/06/05936fa0c845eba6.png" /></p>]]></content>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;ul&gt;
+&lt;li&gt;发表会议：SC 2024&lt;/li&gt;
+&lt;li&gt;作者：Tuowei Wang, Kun Li, Zixu Hao, Donglin Bai, Ju Ren, Yaoxue Zhang, Ting Cao, Mao Yan&lt;/li&gt;
+&lt;li&gt;单位：Microsoft</summary>
+        
+      
+    
+    
+    
+    
+  </entry>
   
   <entry>
     <title>读论文：Towards a Machine Learning-Assisted Kernel with LAKE</title>
