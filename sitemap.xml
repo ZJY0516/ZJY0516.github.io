@@ -2,6 +2,24 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>http://riverclouds.net/p/656810411/</loc>
+    
+    <lastmod>2025-03-10</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>http://riverclouds.net/p/1821509292/</loc>
+    
+    <lastmod>2025-03-10</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
     <loc>http://riverclouds.net/p/1146240077/</loc>
     
     <lastmod>2025-01-08</lastmod>
@@ -39,15 +57,6 @@
   
   <url>
     <loc>http://riverclouds.net/about/index.html</loc>
-    
-    <lastmod>2024-10-06</lastmod>
-    
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
-    <loc>http://riverclouds.net/p/656810411/</loc>
     
     <lastmod>2024-10-06</lastmod>
     
@@ -202,7 +211,7 @@
 
   <url>
     <loc>http://riverclouds.net/</loc>
-    <lastmod>2025-01-08</lastmod>
+    <lastmod>2025-03-10</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
