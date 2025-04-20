@@ -16,25 +16,21 @@
   <meta name="author" content="朱雅江">
   <meta name="keywords" content="">
   
-    <meta name="description" content="ASPLOS 2024 标题：SpecInfer: Accelerating Large Language Model Serving with Tree-based Speculative Inference and Verification 作者：Xupeng Miao, Gabriele Oliaro, Zhihao Zhang, Xinhao Cheng, Zeyu Wang, Zheng">
+    <meta name="description" content="看了北影节放映的横空出世，感触颇多，有几处几乎落泪。 印象最深刻的两处台词  上级调你来造原子弹 我不会啊 我也不会   应该说美国是一个美丽的国家 可是它不应该像现在这样，动不动就要欺负你 让你就想对他大喊一声：NO，去你妈的！  这句台词说完，全场鼓掌。 彼时彼刻，恰如此时此刻。 电影散场后，听到其他观众说，这些人是有追求和目标并且愿意为之不懈奋斗的。 那现在的我们还有吗？ 豆瓣有一句热评说">
 <meta property="og:type" content="article">
-<meta property="og:title" content="读论文：SpecInfer">
-<meta property="og:url" content="http://riverclouds.net/p/1821509292/index.html">
+<meta property="og:title" content="横空出世观后感">
+<meta property="og:url" content="http://riverclouds.net/p/3941762025/index.html">
 <meta property="og:site_name" content="riverclouds">
-<meta property="og:description" content="ASPLOS 2024 标题：SpecInfer: Accelerating Large Language Model Serving with Tree-based Speculative Inference and Verification 作者：Xupeng Miao, Gabriele Oliaro, Zhihao Zhang, Xinhao Cheng, Zeyu Wang, Zheng">
+<meta property="og:description" content="看了北影节放映的横空出世，感触颇多，有几处几乎落泪。 印象最深刻的两处台词  上级调你来造原子弹 我不会啊 我也不会   应该说美国是一个美丽的国家 可是它不应该像现在这样，动不动就要欺负你 让你就想对他大喊一声：NO，去你妈的！  这句台词说完，全场鼓掌。 彼时彼刻，恰如此时此刻。 电影散场后，听到其他观众说，这些人是有追求和目标并且愿意为之不懈奋斗的。 那现在的我们还有吗？ 豆瓣有一句热评说">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://s3.bmp.ovh/imgs/2025/03/10/aeb5a97b8c76c613.png">
-<meta property="og:image" content="https://s3.bmp.ovh/imgs/2025/03/10/78468b410ff18bcf.png">
-<meta property="og:image" content="https://s3.bmp.ovh/imgs/2025/03/10/abf09670055a7931.png">
-<meta property="article:published_time" content="2025-03-10T05:04:39.000Z">
-<meta property="article:modified_time" content="2025-03-10T05:13:22.653Z">
+<meta property="article:published_time" content="2025-04-20T06:11:41.000Z">
+<meta property="article:modified_time" content="2025-04-20T06:14:38.441Z">
 <meta property="article:author" content="朱雅江">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://s3.bmp.ovh/imgs/2025/03/10/aeb5a97b8c76c613.png">
   
   
   
-  <title>读论文：SpecInfer - riverclouds</title>
+  <title>横空出世观后感 - riverclouds</title>
 
   <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
 
@@ -208,7 +204,7 @@
       <div class="banner-text text-center fade-in-up">
         <div class="h2">
           
-            <span id="subtitle" data-typed-text="读论文：SpecInfer"></span>
+            <span id="subtitle" data-typed-text="横空出世观后感"></span>
           
         </div>
 
@@ -219,8 +215,8 @@
     
       <span class="post-meta">
         <i class="iconfont icon-date-fill" aria-hidden="true"></i>
-        <time datetime="2025-03-10 13:04" pubdate>
-          2025年3月10日
+        <time datetime="2025-04-20 14:11" pubdate>
+          2025年4月20日
         </time>
       </span>
     
@@ -231,7 +227,7 @@
       <span class="post-meta mr-2">
         <i class="iconfont icon-chart"></i>
         
-          1.4k 字
+          754 字
         
       </span>
     
@@ -242,7 +238,7 @@
         
         
         
-          12 分钟
+          7 分钟
         
       </span>
     
@@ -287,12 +283,12 @@
       <div class="container nopadding-x-md" id="board-ctn">
         <div id="board">
           <article class="post-content mx-auto">
-            <h1 id="seo-header">读论文：SpecInfer</h1>
+            <h1 id="seo-header">横空出世观后感</h1>
             
               <p class="note note-info">
                 
                   
-                    本文最后更新于：2025年3月10日
+                    本文最后更新于：2025年4月20日
                   
                 
               </p>
@@ -300,57 +296,41 @@
             
               <div class="markdown-body">
                 
-                <p>ASPLOS 2024</p>
-<p>标题：SpecInfer: Accelerating Large Language Model Serving with Tree-based Speculative Inference and Verification</p>
-<p>作者：Xupeng Miao, Gabriele Oliaro, Zhihao Zhang, Xinhao Cheng, Zeyu Wang, Zhengxin Zhang, Rae Ying Yee Wong, Alan Zhu, Lijie Yang, Xiaoxiang Shi, Chunan Shi, Zhuoming Chen, Daiyaan Arfeen, Reyna Abhyankar, Zhihao Jia</p>
-<p>Affiliation: Carnegie Mellon University; Tsinghua University; Shanghai Jiao Tong University; Peking University; University of California, San Diego</p>
-<h2 id="existing-problem">Existing problem</h2>
-<p>模型的选择是一种 tradeoff</p>
-<ul>
-<li>大模型性能更好，但是推理成本高</li>
-<li>小模型性能差，但是推理成本低</li>
-</ul>
-<p>那有没有鱼与熊掌兼得的办法呢？</p>
-<h2 id="sepculative-inference">Sepculative Inference</h2>
-<p>LLM推理的瓶颈内存/显存访问，每生成一个token就要读取所有权重</p>
-<p>Sepculative Inference 的做法是让一个小模型一次生成多个toekn，然后再让 LLM 去验证输出</p>
-<p>（相当于做了batch，减少访存）</p>
-<p>比如说小模型生成“我要吃麦当劳”</p>
-<p>大模型需要验证的就是</p>
-<ul>
-<li>我</li>
-<li>我要</li>
-<li>我要吃</li>
-<li>我要吃麦</li>
-<li>我要吃麦当</li>
-</ul>
-<p>这些序列的下一个token是不是和小模型输出相同</p>
-<p>这种加速方法有效的原因是，小模型的时间可以忽略不计，大模型最后至少能生成一个token，相当于时间基本不变</p>
-<p>实际的加速比会受限于以下三个因素</p>
-<ul>
-<li>小模型的速度</li>
-<li>两者输出的对齐程度</li>
-<li>大模型验证是否高效</li>
-</ul>
-<h2 id="tree-based-speculative-inference-and-verification">Tree-based Speculative Inference and Verification</h2>
-<p>Specinfer 希望解决后两个问题</p>
-<p>一个观察是，同时保留小模型输出的多个高概率的token，成功率会大大提高</p>
-<ul>
-<li>Learning-based Speculator: 使用了多个 SSM（Small Speculative Model），并使用了类似集成学习的方法使多个 SSM 的输出尽可能覆盖 LLM 的输出 每次只训练一个 SSM，当 SSM 训练完成后，将训练集中这个SSM 的输出与 LLM 输出一致的那些训练数据删去，并用剩下的训练集继续训练下一个 SSM。这样，多个 SSM 的输出可以尽可能地覆盖到 LLM 可能的输出。</li>
-<li>Tree-based Verifier</li>
-</ul>
-<p>现在有四个序列，做四次验证是非常低效的</p>
-<p>本文首次提出了Tree Attention，想法非常简单，使用与树的形状相匹配的mask</p>
-<p>这样就可以一次性做完四条序列的验证</p>
-<p><img src="https://s3.bmp.ovh/imgs/2025/03/10/aeb5a97b8c76c613.png" srcset="/img/loading.gif" lazyload /></p>
-<p><img src="https://s3.bmp.ovh/imgs/2025/03/10/78468b410ff18bcf.png" srcset="/img/loading.gif" lazyload /></p>
-<h2 id="overview">Overview</h2>
-<p>Tree attention基本是后续Speculative Decoding 的标配了</p>
-<p><img src="https://s3.bmp.ovh/imgs/2025/03/10/abf09670055a7931.png" srcset="/img/loading.gif" lazyload /></p>
-<h2 id="相关链接">相关链接</h2>
-<p>https://huggingface.co/blog/zh/assisted-generation</p>
-<p>https://drive.google.com/file/d/138bR9IQPEdSKBBETGKM-Ktt7BkAlSkp7/view</p>
-<p>https://speculative-decoding.github.io/</p>
+                <p>看了北影节放映的横空出世，感触颇多，有几处几乎落泪。</p>
+<p>印象最深刻的两处台词</p>
+<blockquote>
+<p>上级调你来造原子弹</p>
+<p>我不会啊</p>
+<p>我也不会</p>
+</blockquote>
+<blockquote>
+<p>应该说美国是一个美丽的国家</p>
+<p>可是它不应该像现在这样，动不动就要欺负你</p>
+<p>让你就想对他大喊一声：NO，去你妈的！</p>
+</blockquote>
+<p>这句台词说完，全场鼓掌。</p>
+<p>彼时彼刻，恰如此时此刻。</p>
+<p>电影散场后，听到其他观众说，这些人是有追求和目标并且愿意为之不懈奋斗的。</p>
+<p>那现在的我们还有吗？</p>
+<p>豆瓣有一句热评说</p>
+<blockquote>
+<p>那个年代的人真是有信仰和精神的，不是我们现在能够评论的</p>
+</blockquote>
+<p>片中的陆光达也说</p>
+<blockquote>
+<p>人是需要精神的。</p>
+</blockquote>
+<p>我很羡慕他们的状态。</p>
+<p>从电影的角度说，它有一些我不太喜欢的地方，比如说一些故事和场景的转换可能有些生硬，但是看到最后我已经忘记了这一切，因为它有中国人最朴素最真挚的爱国情怀，情感浓烈到我已经忘记了其他。</p>
+<p>尽管我可能不喜欢里面的某些集体主义桥段，但是作为中国人，无论如何还是会被电影中真诚的情感、浪漫和气魄打动。（一言以蔽之，看得很上头）</p>
+<p>观影中唯一一次落泪是陆光达夫妻在大雨中重逢，此前的感情都在那一刻凝聚，然后再爆发出来，人的喜怒哀乐在时代背景下显得更加厚重。</p>
+<p>最后想谈一下这部电影和诺兰的《奥本海默》，可以发现，他们描述的题材相同，但是故事的重点、对原子弹的态度、人物的刻画和叙事手法都截然不同。</p>
+<p>当然，我觉得很大程度上这是历史原因，两国研制原子弹的历史背景截然不同，文化也截然不同。</p>
+<p>这里讲一个我印象比较深刻的区别，奥本海默建设基地的时候考虑的是如何让科学家们安心地在远离人群的地方工作，所以他造了一个小镇，而横空出世的条件就艰苦得多。</p>
+<p>杨振宁先生曾经说</p>
+<blockquote>
+<p>我以为邓稼先如果是美国人，不可能成功地领导美国原子弹工程；奥本海默如果是中国人，也不可能成功地领导中国原子弹工程。当初选聘他们的人，钱三强和葛罗夫斯，可谓真正有知人之明，而且对中国社会、美国社会各有深入的认识。</p>
+</blockquote>
 
                 
               </div>
@@ -370,18 +350,12 @@
                   <article class="post-prev col-6">
                     
                     
-                      <a href="/p/3941762025/" title="横空出世观后感">
-                        <i class="iconfont icon-arrowleft"></i>
-                        <span class="hidden-mobile">横空出世观后感</span>
-                        <span class="visible-mobile">上一篇</span>
-                      </a>
-                    
                   </article>
                   <article class="post-next col-6">
                     
                     
-                      <a href="/p/1146240077/" title="C语言如何在编译期导入二进制数据">
-                        <span class="hidden-mobile">C语言如何在编译期导入二进制数据</span>
+                      <a href="/p/1821509292/" title="读论文：SpecInfer">
+                        <span class="hidden-mobile">读论文：SpecInfer</span>
                         <span class="visible-mobile">下一篇</span>
                         <i class="iconfont icon-arrowright"></i>
                       </a>
