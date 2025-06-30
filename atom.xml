@@ -6,7 +6,7 @@
   <link href="http://riverclouds.net/atom.xml" rel="self"/>
   
   <link href="http://riverclouds.net/"/>
-  <updated>2025-06-06T12:29:29.110Z</updated>
+  <updated>2025-06-30T11:20:03.526Z</updated>
   <id>http://riverclouds.net/</id>
   
   <author>
@@ -15,6 +15,29 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>Marconi: Prefix Caching for the Era of Hybrid LLMs</title>
+    <link href="http://riverclouds.net/p/1540794721/"/>
+    <id>http://riverclouds.net/p/1540794721/</id>
+    <published>2025-06-30T06:14:35.000Z</published>
+    <updated>2025-06-30T11:20:03.526Z</updated>
+    
+    <content type="html"><![CDATA[<p>本文是 Marconi: Prefix Caching for the Era of Hybrid LLMs的阅读笔记，<ahref="https://arxiv.org/abs/2411.19379v3">原文链接</a>。</p><p>Attention的二次复杂度给计算和显存都带来了巨大的压力，所以有一些工作致力于寻找线性复杂度的Attention(linear attention)。</p><p>Attention 记录的中间状态会随着序列长度增加而增加，Linear attention只会维护一个固定大小的状态。具体参考<ahref="https://spaces.ac.cn/archives/11033">苏神的博客</a></p><p>可以想像的是，linear attention 的“智商”不如传统attention。所以现在普遍的做法是结合两者，即在若干个 linear层之后加上标准的attention，比如说Jamba，Mamba和Minimax，这让它们集两家之长：既有处理长上下文的效率，又不失注意力机制的记忆能力。</p><p><strong>但这种新架构也引入了新的问题：前缀缓存（prefixcaching）在这些新混合模型上效果不佳。</strong></p><h2id="为何在混合式大语言模型上做缓存如此困难">为何在混合式大语言模型上做缓存如此困难</h2><p>前缀缓存的理念很简单：如果许多用户的请求都以相同的文本开头（例如系统提示或共享文档），你可以一次性计算该前缀的内部状态，将其缓存，并在所有后续请求中重复使用，从而节省大量冗余计算。</p><p>对于传统的Transformer模型来说，这很简单。它们的内部状态（KV缓存）可以被轻松地切分。如果你有了一个1000个token 序列的缓存，你可以轻易地将其前500个 token的部分用于另一个请求。</p><p>然而，混合模型中的循环SSM层则不同。它们按顺序处理 toekn并就地更新（in-place update）其内部状态。你可以把它想象成一个滚动的摘要：第1000个 toekn的状态包含了从第1到999个 toekn的所有压缩信息。关键在于，你无法回滚这个状态，这意味着代表1000个 toekn的状态不能被用来表示仅前500个 toekn 的状态。</p><p>这给缓存系统带来了一个“要么全有，要么全无”的困境：</p><ul><li>最大化复用：为了确保能处理任何可能的前缀重叠，你必须非常频繁地保存SSM状态的检查点（例如，每32个toekn 一次）。这被称为细粒度检查点（fine-grained checkpointing）。</li><li>带来的后果：这样做会产生大量巨大但效用低的缓存条目。SSM状态本身很大（通常是单个toeknKV缓存大小的10到100倍）。如此频繁地保存它们，会使缓存中充满了极少被复用的条目，导致“缓存颠簸”（cachethrashing）现象——有用的数据不断被踢出缓存 。</li></ul><p>如论文所示，在使用细粒度检查点时，KV缓存块的复用率比SSM状态块的复用率高出65倍以上，这说明大量缓存空间被浪费在从未被命中的SSM状态上。</p><pre><code class=" mermaid">graph TD    subgraph &quot;细粒度缓存（问题所在）&quot;        direction LR        Req1[&quot;请求: &#x27;The quick brown fox jumps over the lazy dog&#x27;&quot;] -- &quot;生成大量检查点&quot; --&gt; Cache;    end    subgraph &quot;缓存内存&quot;        direction TB        State1[&quot;SSM状态&lt;br&gt;&#x27;The quick&#x27; (体积大)&quot;];        State2[&quot;SSM状态&lt;br&gt;&#x27;The quick brown&#x27; (体积大)&quot;];        State3[&quot;SSM状态&lt;br&gt;&#x27;The quick brown fox&#x27; (体积大)&quot;];        State4[&quot;...更多...&quot;];    end        subgraph &quot;新请求&quot;        Req2[&quot;请求: &#x27;The quick brown cat...&#x27;&quot;];    end    Req2 -- &quot;需要&quot; --&gt; State2;    State1 -- &quot;从未被复用&quot; --&gt; Wasted1((浪费));    State3 -- &quot;从未被复用&quot; --&gt; Wasted2((浪费));    style Wasted1 fill:#f99,stroke:#333,stroke-width:2px    style Wasted2 fill:#f99,stroke:#333,stroke-width:2px    style State2 fill:#9f9,stroke:#333,stroke-width:2px</code></pre><h2 id="marconi的解决方案">Marconi的解决方案</h2><p>Marconi通过一个双管齐下的方法解决了这个困境：限制准入缓存的内容，并对踢出缓存的内容更加智能。</p><h3 id="智能准入策略">智能准入策略</h3><p>Marconi不会缓存所有东西，而是只缓存那些有很高复用可能性的SSM状态。它识别了两种关键的复用场景：</p><ul><li><p>纯输入前缀：例如系统提示或指令，这些内容会在许多不同用户会话中共享。</p></li><li><p>输入和输出前缀：这通常是对话历史，新请求会附加在上一轮对话之后。</p></li></ul><p>为了管理这一点，Marconi使用了一个<strong>基数树（radixtree）</strong>来追踪所有请求的历史。它的准入策略简单而有效：</p><ul><li><p>对于对话历史，它总是在最后一个解码 toekn之后设置检查点，因为这是最可能的续写点。</p></li><li><p>为了找到共享的“纯输入”前缀，它在处理新请求之前执行一次推测性插入（speculativeinsertion）。它会检查将新请求的输入添加到基数树中是否会创建一个新的分支点。如果会，那么这个分支就代表一个被至少两个不同序列共享的公共前缀，Marconi就知道应该在这里设置检查点。</p></li></ul><p>通过这种方式，Marconi为每个序列最多只准入两个SSM状态，极大地减少了缓存的混乱，并确保了被准入的状态有很高的复用概率。</p><pre><code class=" mermaid">graph TD    subgraph &quot;Marconi的推测性准入&quot;        direction LR        subgraph &quot;已有的基数树&quot;            Root --&gt; N1(&quot;系统提示&lt;br&gt;...&quot;);            N1 --&gt; N2(&quot;用户: 你好吗?&quot;);        end        subgraph &quot;新请求&quot;            Req(&quot;系统提示&lt;br&gt;...&lt;br&gt;用户: 天气怎么样?&quot;);        end    end        subgraph &quot;Marconi的逻辑&quot;       A(&quot;1. 推测性插入&quot;) --&gt; B&#123;&quot;新请求是否会在&lt;br&gt;&#x27;系统提示...&#x27;处创建分支?&quot;&#125;;       B -- &quot;是的!&quot; --&gt; C(&quot;2. 决策:&lt;br&gt;&lt;b&gt;为&#x27;系统提示...&#x27;创建&lt;br&gt;SSM状态检查点&lt;/b&gt;&quot;);    end        A -- &quot;检查&quot; --&gt; Req    A -- &quot;利用&quot; --&gt; N1</code></pre><h3 id="感知flop的驱逐策略">感知FLOP的驱逐策略</h3><p>大多数缓存系统使用简单的“最近最少使用”（LRU）策略进行驱逐。Marconi认为，对于混合模型来说，这还不够。原因是不同的缓存条目相对于它们占用的内存，能提供的计算节省量是不同的。</p><p>Marconi引入了一个新指标，称为FLOP效率（FLOPefficiency）：即每字节缓存内存所节省的计算量（浮点运算次数）。</p><p>其关键洞见在于，对于混合模型，FLOP效率随序列长度的增加而增加。一个长前缀可以节省大量的计算，但其SSM状态占用的内存与一个短前缀完全相同。</p><p>Marconi的驱逐策略为每个缓存条目计算一个效用分数，该分数平衡了新近度（recency）和这个新指标：效用分= 新近度分数 + α * FLOP效率分数。</p><p>权重 α通过观察工作负载自动调整。这个策略天生就会用较短序列的命中率来换取较长序列的命中率——这是一个tradeoff，因为混合模型处理短序列本已非常高效，而最大的性能提升空间正是在长序列上。</p><h2 id="测试">测试</h2><p>该论文将Marconi与vLLM和SGLang等基线系统（经过扩展以支持混合模型）进行了评估。</p><ul><li><p>命中率大幅提升：与采用细粒度检查点的系统（vLLM）相比，Marconi将toekn 命中率平均提高了4.5倍至34.4倍。</p></li><li><p>仅凭其感知FLOP的驱逐策略，就比一个拥有智能准入但使用标准LRU驱逐策略的系统（SGLang+）的toekn 命中率高出19%至219%。</p></li><li><p>更快的首 toekn生成速度：这些命中率的提升直接转化为更低的时延，将95百分位的首 toekn生成时间（TTFT）最多减少了71.1%（617毫秒）。</p></li><li><p>对于SSM层比例更高、SSM状态维度更大的模型，这些优势更加明显。</p></li></ul>]]></content>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;p&gt;本文是 Marconi: Prefix Caching for the Era of Hybrid</summary>
+        
+      
+    
+    
+    
+    
+  </entry>
   
   <entry>
     <title>荷兰游记</title>
@@ -233,7 +256,7 @@ Bodun Hu, Aditya Akella, Christopher J.</summary>
     <link href="http://riverclouds.net/p/3901540062/"/>
     <id>http://riverclouds.net/p/3901540062/</id>
     <published>2024-08-11T14:43:34.000Z</published>
-    <updated>2025-06-06T12:59:24.308Z</updated>
+    <updated>2025-06-06T16:28:11.010Z</updated>
     
     <content type="html"><![CDATA[<p class="note note-primary">本文是A fork() in the road的读书笔记</p><p class="note note-info">2025年 HotOS 上还在发 fork相关的工作：Spork: A posix_spawn you can useas a fork</p><p>作者认为，fork 作为操作系统原语阻碍了系统研究；作为教育工作者，应该把fork 当作历史的产物来教，而不是学生遇到的第一个进程创建机制。</p><p>fork 有一些优点：</p><ul><li>简洁</li><li>避免并发，当然是在有线程和异步之前。</li></ul><p>作为一个存在了50年的抽象，在当今fork也有很多缺点：</p><ul><li><p>fork已经不再简洁了，如果只有内存和文件描述符，这是十分优雅的方案，但是操作系统的演化过程中，进程增加了更多的东西。如今POSIX 标准列出了 fork 的25种特殊情况，包括文件锁，tracing等等。</p></li><li><p>Fork doesn’t compose。不适用于用户空间的很多抽象，比如说 BufferedIO</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">2</span>; i++) &#123;<br>    fork();<br>    <span class="hljs-built_in">printf</span>(<span class="hljs-string">&quot;Hello\n&quot;</span>);<br>&#125;<br></code></pre></td></tr></table></figure><p>在笔者的电脑上（ubuntu22.04）直接运行该程序会输出6行<code>Hello</code>，但是管道给<code>wc -l</code>后结果是8具体可以看jyy在B站的<ahref="https://www.bilibili.com/video/BV1zE421u7p4/">视频讲解</a></p></li><li><p>线程安全问题。比如某个线程使用 malloc 获取到了堆区的锁，这个时候fork，子进程一旦调用 malloc ，就会死锁。</p></li><li><p>安全性，子进程会继承父进程的每一个字节</p></li><li><p>性能低， copy-on-write 能够一定程度上解决这个问题，但是如今创建copy-on-write 的映射也会造成一定程度的性能开销。</p></li><li><p>可扩展性，fork需要复制状态机的每个方面，这意味着实现fork需要统一管理系统状态，这在宏内核里很容易实现，但是微内核中这很难。</p></li><li><p>Fork encourages memory overcommit。作者认为，fork时并不会请求所有的内存，而是 copy-on-write复用父进程的内存，需要修改时再申请，这样会造成意料之外的 oom</p></li><li><p>fork 并不适用于单地址空间，并且 fork 影响了很多并不基于 unix系统的科研系统，他们要考虑是否实现fork语义，若实现，则很可能影响其原有的设计，束缚原先的设计。</p></li><li><p>fork 不适用于异构设备，毕竟没办法复制异构设备的状态。</p></li><li><p>fork 会感染一整个系统，需要每一个层次都支持 fork</p></li></ul><p>作者认为，shell 很适合使用 fork，但是大多数的现代应用并不是 fork</p><p>作者最后提出了一些愿景：</p><ul><li>弃用 fork</li><li>改进比如 posix_spawn() 这样的替代品</li><li>修改教学，就像没有人会在一开始教授<code>goto</code>，我们也不应该讲授如何使用<code>fork</code> 创建进程</li></ul>]]></content>
     
