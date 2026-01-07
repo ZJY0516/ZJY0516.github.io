@@ -1,0 +1,733 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=light>
+
+
+
+<head>
+  <meta charset="UTF-8">
+
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/zjy.jpg">
+  <link rel="icon" href="https://s3.bmp.ovh/imgs/2022/07/12/3c5aec6ab5c15352.jpg">
+  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Jiangyun Zhu">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="发表会议：ASPLOS 2023 作者：Henrique Fingler, Isha Tarte, Hangchen Yu, Ariel Szekely, Bodun Hu, Aditya Akella, Christopher J. Rossbach 单位：The University of Texas at Austin, Meta, MIT  概述：  作者提出了内核辅助决策框架LAKE，">
+<meta property="og:type" content="article">
+<meta property="og:title" content="读论文：Towards a Machine Learning-Assisted Kernel with LAKE">
+<meta property="og:url" content="http://riverclouds.net/p/1982420203/index.html">
+<meta property="og:site_name" content="riverclouds">
+<meta property="og:description" content="发表会议：ASPLOS 2023 作者：Henrique Fingler, Isha Tarte, Hangchen Yu, Ariel Szekely, Bodun Hu, Aditya Akella, Christopher J. Rossbach 单位：The University of Texas at Austin, Meta, MIT  概述：  作者提出了内核辅助决策框架LAKE，">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2024-11-21T12:40:31.000Z">
+<meta property="article:modified_time" content="2024-11-21T13:05:54.000Z">
+<meta property="article:author" content="Jiangyun Zhu">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+  
+  <title>读论文：Towards a Machine Learning-Assisted Kernel with LAKE - riverclouds</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1749284_5i9bdhy70f8.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+  
+<link rel="stylesheet" href="/css/trakt/iconfont.css">
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"riverclouds.net","root":"/","version":"1.9.8","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":false},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"tencent":{"sid":null,"cid":null},"leancloud":{"app_id":"mWFBKEzCCHdRIBnFXmqtMjOw-gzGzoHsz","app_key":"rRz69xIsKIR8svfesk7TGbvW","server_url":"https://mwfbkezc.lc-cn-n1-shared.com","path":"window.location.pathname","ignore_local":true},"umami":{"src":null,"website_id":null,"domains":null,"start_time":"2024-01-01T00:00:00.000Z","token":null,"api_server":null},"gtag":null,"woyaola":null,"cnzz":null},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"><link rel="alternate" href="/atom.xml" title="riverclouds" type="application/atom+xml">
+</head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>riverclouds</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/links/" target="_self">
+                <i class="iconfont icon-link-fill"></i>
+                <span>友链</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="读论文：Towards a Machine Learning-Assisted Kernel with LAKE"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2024-11-21 20:40" pubdate>
+          2024年11月21日
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          1.4k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          12 分钟
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">读论文：Towards a Machine Learning-Assisted Kernel with LAKE</h1>
+            
+              <p id="updated-time" class="note note-info" style="">
+                
+                  
+                    本文最后更新于 2024年11月21日
+                  
+                
+              </p>
+            
+            
+              <div class="markdown-body">
+                
+                <ul>
+<li>发表会议：ASPLOS 2023</li>
+<li>作者：Henrique Fingler, Isha Tarte, Hangchen Yu, Ariel Szekely,
+Bodun Hu, Aditya Akella, Christopher J. Rossbach</li>
+<li>单位：The University of Texas at Austin, Meta, MIT</li>
+</ul>
+<p><strong>概述：</strong></p>
+<ul>
+<li>作者提出了内核辅助决策框架LAKE，使得内核能访问GPU加速 ML 算法</li>
+</ul>
+<h2 id="问题">问题</h2>
+<p>内核中比如内存管理、进程调度等子系统目前依赖手工调整的启发式方法来提供合理的平均性能，ML
+可以更好地权衡这些 tradeoff。</p>
+<h3 id="例子linnososdi2020">例子：LinnOS@OSDI2020</h3>
+<p>问题：SSD复杂的内部活动，如垃圾回收、负载均衡等，和用户的请求冲突时会产生严重的尾延迟。</p>
+<p>观察：存储系统可能存在一定冗余（RAID），而多个不同的SSD的内部行为同时和用户请求产生冲突的概率非常低。
+所以可以将一个请求发给一个SSD后，若等待请求完成的时间超过了阈值，则<strong>重发请求到另一个可用的SSD</strong>。但是对于比较快的SSD来说，<strong>“等待慢SSD处理的时间超过阈值”这件事还是很慢</strong>。</p>
+<p>解法：LinnOS学习SSD的特征，<strong>预测将要变慢的SSD而及时将请求重发到快SSD</strong></p>
+<p><img
+src="https://s3.bmp.ovh/imgs/2024/11/21/f7534466a5356ea0.png" srcset="/img/loading.gif" lazyload /></p>
+<p>看起来一系列信息都和SSD快或慢有关：读写请求？请求的块内偏移？长期的写入历史？然而，作者发现这些请求都对提高精确度没有明显帮助。首先，由于当前SSD常有内置写缓存，写之后的读延迟常常没有明显提高，更为常见的其实是数据从缓存”冲“（flush）入SSD后，读延迟会更高。其次，一组I/O请求会通过条带均匀地写入各个通道或者芯片，它们写入同一个芯片的概率很低，所以块内偏移这个特征其实并不重要。最后，GC或者flush通常发生时间短，短期写入历史就可以预测。</p>
+<p>因此，可以使用SSD当前I/O队列长度来预测SSD快或者慢：一个直观的感受是，当I/O队列较长时，SSD处理通常比较慢。但是这样并不能体现SSD的内部活动的发生，因此额外增加了历史四条请求进入SSD时的队列长度和完成请求的时间。若某个请求进入SSD时队列短而完成请求的时间长，意味着SSD内部行为可能和用户请求冲突了。</p>
+<p><strong>如何最小化预测错误的影响？</strong></p>
+<p>作者分析发现，若将一个快的SSD预测为慢的从而错误地重发了，将带来微秒级延迟，而若将一个慢的SSD预测为快，将带来毫秒级延迟，比第一种情况严重许多，所以作者在训练时对第二种情况施加了更加严重的惩罚以减少它们的发生。此外，还补充了hedged
+request以减少预测失败的损失。</p>
+<h2 id="问题描述how-to-best-support-ml-in-the-os">问题描述：How to best
+support ML in the OS?</h2>
+<h3 id="挑战1内核无法用gpu">挑战1：内核无法用GPU</h3>
+<ul>
+<li><strong>现状：</strong>ML is <strong>compute</strong>
+<strong>expensive</strong>
+<ul>
+<li>部分决策存在<strong>低时延</strong>需求</li>
+<li>无法使用比较大的模型（PSS@ASPLOS'23只用单层感知机）</li>
+</ul></li>
+<li><strong>想法：</strong>使用 GPU/TPU 可降低 ML 性能开销
+<ul>
+<li><strong>内核空间无法利用现有的硬件加速器</strong>（如英伟达的GPU驱动闭源并且仅针对用户空间开发）</li>
+<li><strong>硬件加速需要均摊数据传输的成本</strong></li>
+<li><strong>用户空间和内核空间对GPU/TPU存在资源争用</strong></li>
+</ul></li>
+</ul>
+<h3
+id="挑战2训练和推理需要跨模块收集数据">挑战2：训练和推理需要跨模块收集数据</h3>
+<p>为了收集来自于CPU、内存、IO等模块的信息，如果没有任何基础设施，可能需要手动维护数据结构和控制临界区，但是这样的实现很复杂，加入新的代码可能带来<strong>死锁</strong>等一系列问题。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs C"><span class="hljs-type">void</span> <span class="hljs-title function_">submit_bio</span><span class="hljs-params">()</span> &#123; <br>    ts_tart = now(); <br>    new_fv = allocate_fv(); <br>    new_fv_size = ...; <br>    new_fv.io_size = new_fv_size; <br>    store_fv(); <br>&#125;<br></code></pre></td></tr></table></figure>
+<h2 id="方案">方案</h2>
+<h3
+id="内核如何用gpu提供内核态加速器调用接口将请求转发到用户空间处理">内核如何用GPU：<strong>提供内核态加速器调用接口，将请求转发到用户空间处理</strong></h3>
+<p>LAKE 中主要有三个组件：</p>
+<p><img
+src="https://s3.bmp.ovh/imgs/2024/11/21/4efd680ec68195fb.png" srcset="/img/loading.gif" lazyload /></p>
+<ul>
+<li><code>lakelib</code>：在内核中提供一组与用户空间相同的
+API，如<code>cuXXX</code></li>
+<li><code>lakeD</code>：实现 API
+的用户端守护进程，负责接受内核态请求，再调用用户空间的接口。</li>
+<li><code>lakeShm</code>：为了避免数据拷贝，<code>LAKE</code>使用共享内存的方式在用户空间和内核之间共享数据</li>
+</ul>
+<h3
+id="解决争用动态调节使用gpucpu"><strong>解决争用：动态调节使用GPU/CPU</strong></h3>
+<p><code>LAKE</code>采取了如下两条策略</p>
+<ul>
+<li>GPU只有在<strong>大规模输入</strong>的情况下才有优势 ----&gt;
+batch大于一定值<strong>(&gt;32)</strong>才使用GPU推理</li>
+<li>避免用户空间产生资源争抢 -----&gt;
+GPU使用率低于一定值的时候才使用GPU推理</li>
+</ul>
+<p><code>LAKE</code>支持使用<code>eBPF</code>自定义策略：在GPU占用率过高或者batch过小的时候会使用CPU推理。</p>
+<p><img
+src="https://s3.bmp.ovh/imgs/2024/11/21/872abbd9f299985a.png" srcset="/img/loading.gif" lazyload /></p>
+<h3
+id="提供收集feature的内核公共基础设施"><strong>提供收集feature的内核公共基础设施</strong></h3>
+<p>LAKE实现了一套用于<strong>跨模块收集数据的异步API以及与之对应的无锁数据结构</strong>。主要功能包括：</p>
+<ul>
+<li>注册特征</li>
+<li>记录特征</li>
+<li>加载和更新模型</li>
+</ul>
+<p><img
+src="https://s3.bmp.ovh/imgs/2024/11/21/5195db327fe6c97e.png" srcset="/img/loading.gif" lazyload /></p>
+<h2 id="效果">效果</h2>
+<ul>
+<li>2 * 16-core Intel Xeon Gold 6226R CPUs</li>
+<li>376 GiB DDR4 RAM</li>
+<li>2 * NVIDIA A100 GPUs</li>
+<li>3 * Samsung 980 Pro 1TB (PCIe 4.0) NVMes</li>
+<li>Ubuntu 22.04 with our modified Linux kernel based on version
+6.0</li>
+</ul>
+<p>作者测试了一个端到端的IO预测问题，使用的模型为发表在OSDI2020上的LinnOS，baseline是没有重定向的IO</p>
+<blockquote>
+<p>NN指neural networks。默认大小为
+[256,2]，+1代表加一层256个神经元的网络</p>
+</blockquote>
+<p><img
+src="https://s3.bmp.ovh/imgs/2024/11/21/35de23ccbfb0f8a7.png" srcset="/img/loading.gif" lazyload /></p>
+<h2 id="总结">总结</h2>
+<ul>
+<li><strong>优点</strong>
+<ul>
+<li>在内核中使用GPU加速机器学习推理</li>
+<li>实现了一套跨模块收集数据的基础设施</li>
+</ul></li>
+<li><strong>不足</strong>
+<ul>
+<li>没有体现更大模型的必要性</li>
+<li>没有明显的端到端的性能优势</li>
+<li>跨层优化：如果用户态和内核态同时需要用GPU推理，本文会牺牲内核态，但未必是全局最优。</li>
+</ul></li>
+</ul>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+</div>
+
+
+              
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/p/3074410774/" title="读论文：Long Exposure: Accelerating Parameter-Efficient Fine-Tuning for LLMs under Shadowy Sparsity">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">读论文：Long Exposure: Accelerating Parameter-Efficient Fine-Tuning for LLMs under Shadowy Sparsity</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/p/656810411/" title="2025届跨保cs经验贴">
+                        <span class="hidden-mobile">2025届跨保cs经验贴</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+    <div class="statistics">
+  
+  
+
+  
+    
+      <span id="leancloud-site-pv-container" style="display: none">
+        总访问量 
+        <span id="leancloud-site-pv"></span>
+         次
+      </span>
+    
+    
+      <span id="leancloud-site-uv-container" style="display: none">
+        总访客数 
+        <span id="leancloud-site-uv"></span>
+         人
+      </span>
+    
+    
+
+  
+
+</div>
+
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.10/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script defer src="/js/leancloud.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>
