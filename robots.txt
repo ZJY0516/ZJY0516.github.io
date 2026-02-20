@@ -1,0 +1,13 @@
+User-agent: *
+
+Allow: /
+Allow: /p/
+Allow: /archives/
+Allow: /about/
+Allow: /links/
+
+Disallow: /img/
+Disallow: /js/
+Disallow: /css/
+
+Sitemap: https://riverclouds.net/sitemap.xml

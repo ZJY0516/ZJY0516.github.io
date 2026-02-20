@@ -1,0 +1,742 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=light>
+
+
+
+<head>
+  <meta charset="UTF-8">
+
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/zjy.jpg">
+  <link rel="icon" href="https://s3.bmp.ovh/imgs/2022/07/12/3c5aec6ab5c15352.jpg">
+  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Jiangyun Zhu">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="vLLM的torch.compile集成在网上资料非常少，官方写的有一篇博客 和文档 但是很多相关的介绍都是语焉不详，只有宏观上的介绍，没有具体的细节。  笔者正在写这篇的时候，BBuf 发了一篇类似的文章[https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;p&#x2F;1955402895890560120]  所以笔者决定自己写一篇。 torch.compile 介绍 这个网上的介绍已经非常多了，在">
+<meta property="og:type" content="article">
+<meta property="og:title" content="vllm-torch-compile-integration">
+<meta property="og:url" content="http://riverclouds.net/p/3525412134/index.html">
+<meta property="og:site_name" content="riverclouds">
+<meta property="og:description" content="vLLM的torch.compile集成在网上资料非常少，官方写的有一篇博客 和文档 但是很多相关的介绍都是语焉不详，只有宏观上的介绍，没有具体的细节。  笔者正在写这篇的时候，BBuf 发了一篇类似的文章[https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;p&#x2F;1955402895890560120]  所以笔者决定自己写一篇。 torch.compile 介绍 这个网上的介绍已经非常多了，在">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2025-10-05T08:16:38.000Z">
+<meta property="article:modified_time" content="2025-10-05T08:31:56.000Z">
+<meta property="article:author" content="Jiangyun Zhu">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+  
+  <title>vllm-torch-compile-integration - riverclouds</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1749284_5i9bdhy70f8.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+  
+<link rel="stylesheet" href="/css/trakt/iconfont.css">
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"riverclouds.net","root":"/","version":"1.9.8","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":false},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"tencent":{"sid":null,"cid":null},"leancloud":{"app_id":"mWFBKEzCCHdRIBnFXmqtMjOw-gzGzoHsz","app_key":"rRz69xIsKIR8svfesk7TGbvW","server_url":"https://mwfbkezc.lc-cn-n1-shared.com","path":"window.location.pathname","ignore_local":true},"umami":{"src":null,"website_id":null,"domains":null,"start_time":"2024-01-01T00:00:00.000Z","token":null,"api_server":null},"gtag":null,"woyaola":null,"cnzz":null},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"><link rel="alternate" href="/atom.xml" title="riverclouds" type="application/atom+xml">
+</head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>riverclouds</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/links/" target="_self">
+                <i class="iconfont icon-link-fill"></i>
+                <span>友链</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="vllm-torch-compile-integration"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2025-10-05 16:16" pubdate>
+          2025年10月5日
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          1.8k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          15 分钟
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">vllm-torch-compile-integration</h1>
+            
+              <p id="updated-time" class="note note-info" style="">
+                
+                  
+                    本文最后更新于 2025年10月5日
+                  
+                
+              </p>
+            
+            
+              <div class="markdown-body">
+                
+                <p>vLLM的<code>torch.compile</code>集成在网上资料非常少，官方写的有一篇<a
+target="_blank" rel="noopener" href="https://blog.vllm.ai/2025/08/20/torch-compile.html">博客</a> 和<a
+target="_blank" rel="noopener" href="https://docs.vllm.ai/en/latest/design/torch_compile.html">文档</a></p>
+<p>但是很多相关的介绍都是语焉不详，只有宏观上的介绍，没有具体的细节。</p>
+<blockquote>
+<p>笔者正在写这篇的时候，<a
+target="_blank" rel="noopener" href="https://www.zhihu.com/people/zhang-xiao-yu-45-67-74">BBuf</a>
+发了一篇类似的文章[https://zhuanlan.zhihu.com/p/1955402895890560120]</p>
+</blockquote>
+<p>所以笔者决定自己写一篇。</p>
+<h2 id="torch.compile">torch.compile</h2>
+<h3 id="介绍">介绍</h3>
+<p>这个网上的介绍已经非常多了，在此就不再赘述。</p>
+<p>需要明确的是，<code>torch.compile</code>包括两个重要的组成部分：<code>Dynamo</code>和<code>Inductor</code></p>
+<p>整个编译过程大概是下面这样，具体可以参考<a
+target="_blank" rel="noopener" href="https://fkong.tech/posts/2024-09-01-torch-compile-stack/">这篇博客</a></p>
+<ul>
+<li>使用 TorchDynamo 来 trace 函数</li>
+<li>xxxx</li>
+<li>Inductor 运行 post_grad_passes，优化计算图。</li>
+<li>xxxx</li>
+</ul>
+<h3 id="自定义backend">自定义backend</h3>
+<p><code>torch.compile</code>提供了使用自定义<code>backend</code>的的接口，具体参考这篇<a
+target="_blank" rel="noopener" href="https://docs.pytorch.org/docs/stable/torch.compiler_custom_backends.html">文档</a></p>
+<p><code>backend</code>函数需要符合这样的接口 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs python">(gm: torch.fx.GraphModule, example_inputs: <span class="hljs-type">List</span>[torch.Tensor]) -&gt; <span class="hljs-type">Callable</span><br></code></pre></td></tr></table></figure>
+自定义的后端会被 <code>Dynamo</code>
+调用，接收一个<code>fx graph</code>，后端需要返回优化后的、等价的<code>fx graph</code>。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">import</span> torch<br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">my_custom_backend</span>(<span class="hljs-params">gm, example_inputs</span>):<br>    <span class="hljs-keyword">return</span> gm.forward<br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">f</span>(<span class="hljs-params">...</span>):<br>    ...<br><br>f_opt = torch.<span class="hljs-built_in">compile</span>(f, backend=my_custom_backend)<br><br><span class="hljs-meta">@torch.compile(<span class="hljs-params">backend=my_custom_backend</span>)</span><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">g</span>(<span class="hljs-params">...</span>):<br>    ...<br></code></pre></td></tr></table></figure>
+<h3 id="自定义pass">自定义pass</h3>
+<blockquote>
+<p>本节主要参考了下面两篇文档</p>
+</blockquote>
+<ul>
+<li><a
+target="_blank" rel="noopener" href="https://docs.pytorch.org/docs/stable/torch.compiler_transformations.html">官方文档：Writing
+Graph Transformations on ATen IR</a></li>
+<li><a
+target="_blank" rel="noopener" href="https://docs.pytorch.org/tutorials/intermediate/torch_compile_conv_bn_fuser.html">官方教程:
+Building a Convolution/Batch Norm fuser with torch.compile</a></li>
+</ul>
+<p>当<code>torch.compile</code>官方提供的<code>pass</code>不满足要求的时候可以选择添加自定义<code>pass</code>。</p>
+<p>官方总结了这么几种添加<code>pass</code>的目的</p>
+<ul>
+<li>Axis A: 1. Creating one-to-X mapping (eg. decomposition) 2. Creating
+many-to-one mapping (eg. fusion)</li>
+<li>Axis B: 1. Doing forwards iteration (eg. shape propagation) 2. Doing
+backwards iteration (eg. dead code elimination)</li>
+<li>Axis C: 1. Dependent on local node information (eg. out-variant
+conversion) 2. Dependent on global graph information (eg. memory
+planning)</li>
+</ul>
+<p>修改计算图最直接的方式就是直接操作生成的<code>fx graph</code>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">replace_add_with_mul</span>(<span class="hljs-params">gm: torch.fx.GraphModule</span>) -&gt; torch.fx.GraphModule:<br>    <span class="hljs-keyword">for</span> node <span class="hljs-keyword">in</span> gm.graph.nodes:<br>        <span class="hljs-keyword">if</span> node.op == <span class="hljs-string">&quot;call_function&quot;</span> <span class="hljs-keyword">and</span> node.target == torch.ops.aten.add.Tensor:<br>            node.target = torch.ops.aten.mul.Tensor<br></code></pre></td></tr></table></figure>
+<code>replace_add_with_mul</code>会把所有的<code>add</code>操作都替换为<code>mul</code>。</p>
+<p>当然直接操作计算图是比较繁琐的，所以<code>pytorch</code>也提供了一些比较方便的
+helper utilities。</p>
+<p>我目前接触过的，大概有三种<code>pytorch</code>提供的自定义<code>pass</code>的方式</p>
+<ul>
+<li><code>torch.fx.Transformer</code></li>
+<li><code>subgraph_rewriter</code></li>
+<li><code>pattern matcher</code></li>
+</ul>
+<h4 id="torch.fx.transformer">torch.fx.Transformer</h4>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">class</span> <span class="hljs-title class_">ReplaceAddWithMul</span>(torch.fx.Transformer):<br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">call_function</span>(<span class="hljs-params">self, target, args, kwargs</span>):<br>        <span class="hljs-keyword">if</span> target != torch.ops.aten.add.Tensor:<br>            <span class="hljs-keyword">return</span> <span class="hljs-built_in">super</span>().call_function(target, args, kwargs)<br>        <span class="hljs-keyword">return</span> <span class="hljs-built_in">super</span>().call_function(torch.ops.aten.mul.Tensor, args, kwargs)<br><br>transformed_graph_module = ReplaceAddWithMul(graph_module).transform()<br></code></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">class</span> <span class="hljs-title class_">ReplaceAddWithMulSub</span>(torch.fx.Transformer):<br>    <span class="hljs-string">&quot;&quot;&quot;</span><br><span class="hljs-string">    Original:</span><br><span class="hljs-string">        def f(x, y):</span><br><span class="hljs-string">            return x + y</span><br><span class="hljs-string"></span><br><span class="hljs-string">    After pass:</span><br><span class="hljs-string">        def f(x, y):</span><br><span class="hljs-string">            z = x * y</span><br><span class="hljs-string">            return z - y</span><br><span class="hljs-string">    &quot;&quot;&quot;</span><br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">call_function</span>(<span class="hljs-params">self, target, args, kwargs</span>):<br>        <span class="hljs-keyword">if</span> target != torch.ops.aten.add.Tensor:<br>            <span class="hljs-keyword">return</span> <span class="hljs-built_in">super</span>().call_function(target, args, kwargs)<br><br>        x, y = args<br><br>        mul_res = <span class="hljs-built_in">super</span>().call_function(torch.ops.aten.mul.Tensor, args, &#123;&#125;)<br>        <span class="hljs-keyword">return</span> <span class="hljs-built_in">super</span>().call_function(torch.ops.aten.sub.Tensor, (mul_res, y), &#123;&#125;)<br><br>transformed_graph_module = ReplaceAddWithMulSub(graph_module).transform()<br></code></pre></td></tr></table></figure>
+<p>这种方式只能比较方便地对一个 node 做变换。</p>
+<h4 id="subgraph_rewriter">subgraph_rewriter</h4>
+<p>如果想要实现 fusion，就需要 X-&gt;one 或者 X-&gt;Y 的能力</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">from</span> torch.fx <span class="hljs-keyword">import</span> subgraph_rewriter<br><span class="hljs-comment"># This is an inplace operation.</span><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">replace_patterns</span>(<span class="hljs-params">graph_module</span>):<br>    <span class="hljs-string">&quot;&quot;&quot;</span><br><span class="hljs-string">    Original:</span><br><span class="hljs-string">        def f(x, y):</span><br><span class="hljs-string">            x = x + y</span><br><span class="hljs-string">            x = x * y</span><br><span class="hljs-string">            return x</span><br><span class="hljs-string"></span><br><span class="hljs-string">    After pass:</span><br><span class="hljs-string">        def f(x, y):</span><br><span class="hljs-string">            return x - y</span><br><span class="hljs-string">    &quot;&quot;&quot;</span><br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">pattern</span>(<span class="hljs-params">x, y</span>):<br>        x = torch.ops.aten.add.Tensor(x, y)<br>        x = torch.ops.aten.mul.Tensor(x, y)<br>        <span class="hljs-keyword">return</span> x<br><br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">replacement</span>(<span class="hljs-params">x, y</span>):<br>        <span class="hljs-keyword">return</span> torch.ops.aten.sub.Tensor(x, y)<br><br>replaced_patterns = subgraph_rewriter.replace_pattern_with_filters(<br>    traced_module, pattern, replacement<br>)<br></code></pre></td></tr></table></figure>
+<h4 id="pattern-matcher">pattern matcher</h4>
+<p>看起来<code>pattern matcher</code>和<code>subgraph_rewriter</code>非常相似，我也没搞明白他们俩的区别和联系是什么，为什么要搞两套api</p>
+<p>具体可以参考<a
+target="_blank" rel="noopener" href="https://docs.pytorch.org/tutorials/intermediate/torch_compile_conv_bn_fuser.html">这篇教程</a>，有一个完整的例子。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">pattern</span>(<span class="hljs-params">x, y</span>):<br>        x = torch.ops.aten.add.Tensor(x, y)<br>        x = torch.ops.aten.mul.Tensor(x, y)<br>        <span class="hljs-keyword">return</span> x<br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">replacement</span>(<span class="hljs-params">x, y</span>):<br>        <span class="hljs-keyword">return</span> torch.ops.aten.sub.Tensor(x, y)<br><br>example_inputs = [<br>    torch.randn(<span class="hljs-number">1</span>, <span class="hljs-number">4</span>),<br>    torch.randn(<span class="hljs-number">1</span>, <span class="hljs-number">1</span>),<br>]<br><br><span class="hljs-keyword">from</span> torch._inductor.pattern_matcher <span class="hljs-keyword">import</span> PatternMatcherPass<br><span class="hljs-keyword">from</span> torch._inductor <span class="hljs-keyword">import</span> config<br><br><span class="hljs-comment"># Create a pattern matcher pass and register our pattern</span><br>patterns = PatternMatcherPass()<br><br>register_replacement(<br>    pattern,<br>    replacement,<br>    example_inputs,<br>    pm.fwd_only,<br>    patterns,<br>)<br><br><span class="hljs-comment"># Create a custom pass function that applies our patterns</span><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">fusion_pass</span>(<span class="hljs-params">graph</span>):<br>    <span class="hljs-keyword">return</span> patterns.apply(graph)<br><br><span class="hljs-comment"># Set our custom pass in the config</span><br>config.post_grad_custom_post_pass = fusion_pass<br></code></pre></td></tr></table></figure>
+<p>这个 api 我用的时候还是有些问题，比如说 <code>pattern</code>
+的参数不能是常量，一定要是 tensor。
+所以如果某个参数是常量，并且有多个可能的取值，那就只能针对每个取值都生成一个<code>pass</code>，取值有无限多个的情况我也不知道怎么办。</p>
+<h4 id="pass-manager">Pass Manager</h4>
+<p>当后端有了多个自定义<code>pass</code>的时候，他们会统一在<code>pass manager</code>处理。</p>
+<p>示意代码如下： <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">class</span> <span class="hljs-title class_">PassManager</span>:<br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self</span>):<br>        <span class="hljs-variable language_">self</span>.passes: <span class="hljs-built_in">list</span>[InductorPass] = []<br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__call__</span>(<span class="hljs-params">self, graph: fx.Graph</span>):<br>        <span class="hljs-keyword">for</span> pass_ <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.passes:<br>            pass_(graph)<br>                VllmInductorPass.dump_prefix += <span class="hljs-number">1</span><br>        <span class="hljs-variable language_">self</span>.post_cleanup(graph)<br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">add</span>(<span class="hljs-params">self, pass_: InductorPass</span>):<br>        <span class="hljs-keyword">assert</span> <span class="hljs-built_in">isinstance</span>(pass_, InductorPass)<br>        <span class="hljs-variable language_">self</span>.passes.append(pass_)<br></code></pre></td></tr></table></figure></p>
+<h2 id="vllm如何利用torch.compile">vLLM如何利用torch.compile</h2>
+<p>模型的定义文件中，支持compile的部分会使用<code>@support_torch_compile</code>装饰器</p>
+<p>具体的实现在<a
+target="_blank" rel="noopener" href="https://github.com/vllm-project/vllm/blob/main/vllm/compilation/decorators.py">vllm/compilation/decorators.py</a></p>
+<p>重点在下面的函数中会使用自定义的<code>__init__</code>方法，并且在其中进入<code>TorchCompileWrapperWithCustomDispatcher</code>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">_support_torch_compile</span>(<span class="hljs-params"></span><br><span class="hljs-params">    cls: _T,</span><br><span class="hljs-params">    dynamic_arg_dims: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-type">Union</span>[<span class="hljs-built_in">int</span>, <span class="hljs-built_in">list</span>[<span class="hljs-built_in">int</span>]]],</span><br><span class="hljs-params">    enable_if: <span class="hljs-type">Optional</span>[<span class="hljs-type">Callable</span>[[VllmConfig], <span class="hljs-built_in">bool</span>]] = <span class="hljs-literal">None</span>,</span><br><span class="hljs-params"></span>) -&gt; _T:<br>    <span class="hljs-string">&quot;&quot;&quot;</span><br><span class="hljs-string">    A decorator to add support for compiling the forward method of a class.</span><br><span class="hljs-string">    &quot;&quot;&quot;</span><br>    <span class="hljs-keyword">if</span> TorchCompileWrapperWithCustomDispatcher <span class="hljs-keyword">in</span> cls.__bases__:<br>        <span class="hljs-comment"># support decorating multiple times</span><br>        <span class="hljs-keyword">return</span> cls<br><br>    <span class="hljs-comment"># take care of method resolution order</span><br>    <span class="hljs-comment"># make sure super().__init__ is called on the base class</span><br>    <span class="hljs-comment">#  other than TorchCompileWrapperWithCustomDispatcher</span><br>    cls.__bases__ = cls.__bases__ + (TorchCompileWrapperWithCustomDispatcher, )<br><br>    old_init = cls.__init__<br><br>    <span class="hljs-built_in">setattr</span>(cls, IGNORE_COMPILE_KEY, <span class="hljs-literal">False</span>)<br><br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, *, vllm_config: VllmConfig, prefix: <span class="hljs-built_in">str</span> = <span class="hljs-string">&#x27;&#x27;</span>, **kwargs</span>):<br>        old_init(<span class="hljs-variable language_">self</span>, vllm_config=vllm_config, prefix=prefix, **kwargs)<br>        <span class="hljs-comment"># 省略若干</span><br>        TorchCompileWrapperWithCustomDispatcher.__init__(<br>            <span class="hljs-variable language_">self</span>, compilation_level=vllm_config.compilation_config.level)<br><br>    cls.__init__ = __init__<br></code></pre></td></tr></table></figure> <a
+target="_blank" rel="noopener" href="https://github.com/vllm-project/vllm/blob/main/vllm/compilation/wrapper.py">vllm/compilation/wrapper.py</a>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">class</span> <span class="hljs-title class_">TorchCompileWrapperWithCustomDispatcher</span>:<br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self,</span><br><span class="hljs-params">                 compiled_callable: <span class="hljs-type">Optional</span>[<span class="hljs-type">Callable</span>] = <span class="hljs-literal">None</span>,</span><br><span class="hljs-params">                 compilation_level: <span class="hljs-built_in">int</span> = <span class="hljs-number">0</span></span>):<br>        <span class="hljs-keyword">if</span> compiled_callable <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:<br>            <span class="hljs-comment"># default compilation settings</span><br>            <span class="hljs-comment"># compiling the forward method</span><br><br>            backend = vllm_config.compilation_config.init_backend(vllm_config)<br>            options = <span class="hljs-literal">None</span><br>            <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(backend, <span class="hljs-built_in">str</span>) <span class="hljs-keyword">and</span> backend == <span class="hljs-string">&quot;inductor&quot;</span>:<br>                options = get_current_vllm_config(<br>                ).compilation_config.inductor_compile_config<br><br>            compiled_callable = torch.<span class="hljs-built_in">compile</span>(<span class="hljs-variable language_">self</span>.forward,<br>                                              fullgraph=<span class="hljs-literal">True</span>,<br>                                              backend=backend,<br>                                              options=options)<br><br>        <span class="hljs-variable language_">self</span>.compiled_callable = compiled_callable<br></code></pre></td></tr></table></figure></p>
+<p>vLLM
+实现了<code>VllmBackend</code>，在编译的时候会传入该自定义的backend。</p>
+<h3 id="vllmbackend">VllmBackend</h3>
+<ul>
+<li><p>首先有一些<code>torch.compile</code>缓存相关的操作。</p></li>
+<li><p>然后在<code>VLLMBackend</code>里设置了<code>inductor</code>的<code>post_grad_custom_post_pass</code>，加入自定义<code>pass</code></p></li>
+<li><p>根据<code>splitting_ops</code>来<code>split_graph</code>，得到<code>split_gm</code></p></li>
+<li><p>如果不开启cuda
+graph，直接返回拆分后的计算图，反之需要运行时把输入拷贝到固定地址后再运行（<code>copy_and_call</code>）</p></li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">copy_and_call</span>(<span class="hljs-params">*args</span>):<br>    list_args = <span class="hljs-built_in">list</span>(args)<br>    <span class="hljs-keyword">for</span> i, index <span class="hljs-keyword">in</span> <span class="hljs-built_in">enumerate</span>(<span class="hljs-variable language_">self</span>.sym_tensor_indices):<br>        runtime_tensor = list_args[index]<br>        runtime_shape = runtime_tensor.shape[<span class="hljs-number">0</span>]<br>        static_tensor = <span class="hljs-variable language_">self</span>.input_buffers[i][:runtime_shape]<br><br>        <span class="hljs-comment"># copy the tensor to the static buffer</span><br>        static_tensor.copy_(runtime_tensor)<br><br>        <span class="hljs-comment"># replace the tensor in the list_args to the static buffer</span><br>        list_args[index] = static_tensor<br>    <span class="hljs-keyword">return</span> <span class="hljs-variable language_">self</span>.split_gm(*list_args)<br></code></pre></td></tr></table></figure>
+<h3 id="自定义pass都做了什么">自定义pass都做了什么</h3>
+<p>下面这些是目前<code>vLLM</code>中存在的自定义pass，出于某些原因，他们都是默认关闭的。（开发者说是因为V0和V1的过渡期所以他们关掉了：This
+is a relic of the V1 upgrade, we're working on enabling them by
+default） <a
+target="_blank" rel="noopener" href="https://github.com/vllm-project/vllm/issues/25689">相关的issue</a>里有更多的信息以及社区的目前进展。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">class</span> <span class="hljs-title class_">PassConfig</span>:<br>    <span class="hljs-string">&quot;&quot;&quot;Configuration for custom Inductor passes.</span><br><span class="hljs-string"></span><br><span class="hljs-string">    This is separate from general `CompilationConfig` so that inductor passes</span><br><span class="hljs-string">    don&#x27;t all have access to full configuration - that would create a cycle as</span><br><span class="hljs-string">    the `PassManager` is set as a property of config.&quot;&quot;&quot;</span><br><br>    enable_fusion: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">False</span><br>    <span class="hljs-string">&quot;&quot;&quot;Whether to enable the custom fusion (RMSNorm/SiluMul+quant) pass.&quot;&quot;&quot;</span><br>    enable_attn_fusion: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">False</span><br>    <span class="hljs-string">&quot;&quot;&quot;Whether to enable the custom attention+quant fusion pass.&quot;&quot;&quot;</span><br>    enable_noop: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">False</span><br>    <span class="hljs-string">&quot;&quot;&quot;Whether to enable the custom no-op elimination pass.&quot;&quot;&quot;</span><br>    enable_sequence_parallelism: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">False</span><br>    <span class="hljs-string">&quot;&quot;&quot;Whether to enable sequence parallelism.&quot;&quot;&quot;</span><br>    enable_async_tp: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">False</span><br>    <span class="hljs-string">&quot;&quot;&quot;Whether to enable async TP.&quot;&quot;&quot;</span><br>    enable_fi_allreduce_fusion: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">False</span><br>    <span class="hljs-string">&quot;&quot;&quot;Whether to enable flashinfer allreduce fusion.&quot;&quot;&quot;</span><br>    fi_allreduce_fusion_max_token_num: <span class="hljs-built_in">int</span> = <span class="hljs-number">16384</span><br>    <span class="hljs-string">&quot;&quot;&quot;Max number of tokens to used in flashinfer allreduce fusion.&quot;&quot;&quot;</span><br></code></pre></td></tr></table></figure>
+<p>所有的这些pass都在<a
+target="_blank" rel="noopener" href="https://github.com/vllm-project/vllm/tree/main/vllm/compilation">vllm/compilation</a>，下面简单挑几个介绍一下。</p>
+<h4 id="fusionpass">FusionPass</h4>
+<ul>
+<li>attention + quant</li>
+<li>norm + quant</li>
+<li>compute + comm</li>
+</ul>
+<p>这些都是使用上文提到的<code>pattern matcher</code>方法，将一些操作替换为自定义算子或者第三方库中的算子（如flashinfer）。</p>
+<h4
+id="noopeliminationpass-用于消除多余的-reshapeslice-操作"><code>NoOpEliminationPass</code>
+用于消除多余的 reshape/slice 操作</h4>
+<p>比如说 <figure class="highlight stylus"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs stylus">mul_1: <span class="hljs-string">&quot;f16[s0, 4096]&quot;</span> = ...<br>view_1: <span class="hljs-string">&quot;f16[s0, 128, 32]&quot;</span> = torch<span class="hljs-selector-class">.reshape</span>(mul_1, <span class="hljs-selector-attr">[-1, 128, 32]</span>)<br>view_2: <span class="hljs-string">&quot;f16[s0, 4096]&quot;</span> = torch<span class="hljs-selector-class">.reshape</span>(view_1, <span class="hljs-selector-attr">[-1, 4096]</span>)<br>view_3: <span class="hljs-string">&quot;f16[s0, 128, 32]&quot;</span> = torch<span class="hljs-selector-class">.reshape</span>(view_2, <span class="hljs-selector-attr">[-1, 128, 32]</span>)<br></code></pre></td></tr></table></figure> 可以变为 <figure class="highlight avrasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs avrasm"><span class="hljs-symbol">mul_1:</span> <span class="hljs-string">&quot;f16[s0, 4096]&quot;</span> = ...<br><span class="hljs-symbol">view_3:</span> <span class="hljs-string">&quot;f16[s0, 128, 32]&quot;</span> = ...<br></code></pre></td></tr></table></figure>
+这个pass直接操作计算图节点，所以在这里放一下代码 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">class</span> <span class="hljs-title class_">NoOpEliminationPass</span>(<span class="hljs-title class_ inherited__">VllmInductorPass</span>):<br>    <span class="hljs-string">&quot;&quot;&quot;</span><br><span class="hljs-string">    This is an inductor pass that removes redundant reshape/slice operations.</span><br><span class="hljs-string">    It is required for RMSNorm-quant fusion to work properly.</span><br><span class="hljs-string">    That&#x27;s because apply_fp8_linear adds a reshape, which is redundant</span><br><span class="hljs-string">    in the 2D-case. Additionally, torch internal no-op elimination pass does</span><br><span class="hljs-string">    not handle certain slice variants.</span><br><span class="hljs-string"></span><br><span class="hljs-string">    Cases handled:</span><br><span class="hljs-string">      1. A chain of reshapes is equivalent to the last reshape called on the</span><br><span class="hljs-string">      base tensor (input of the first reshape).</span><br><span class="hljs-string">      2. A reshape that produces the shape of the input is redundant</span><br><span class="hljs-string">      3. A slice that produces the shape of the input is redundant</span><br><span class="hljs-string">    &quot;&quot;&quot;</span><br><br><span class="hljs-meta">    @VllmInductorPass.time_and_log</span><br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__call__</span>(<span class="hljs-params">self, graph: torch.fx.Graph</span>):<br>        count = <span class="hljs-number">0</span><br>        <span class="hljs-comment"># Remove no-op reshapes/views:</span><br>        <span class="hljs-keyword">for</span> node <span class="hljs-keyword">in</span> graph.nodes:<br>            <span class="hljs-keyword">if</span> is_func(node, torch.ops.aten.reshape.default):<br>                <span class="hljs-comment"># Case 1: rewrite reshape chains to reshapes on the base tensor</span><br>                <span class="hljs-built_in">input</span> = node.args[<span class="hljs-number">0</span>]<br>                <span class="hljs-comment"># If the input is a reshape, rebind to that node</span><br>                <span class="hljs-keyword">if</span> is_func(<span class="hljs-built_in">input</span>, torch.ops.aten.reshape.default):<br>                    <span class="hljs-comment"># The new input is guaranteed not to be a reshape,</span><br>                    <span class="hljs-comment"># because we process nodes in order</span><br>                    node.update_arg(<span class="hljs-number">0</span>, <span class="hljs-built_in">input</span>.args[<span class="hljs-number">0</span>])<br>                    <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(<span class="hljs-built_in">input</span>.users) == <span class="hljs-number">0</span>:<br>                        graph.erase_node(<span class="hljs-built_in">input</span>)<br>                        count += <span class="hljs-number">1</span><br><br>                <span class="hljs-comment"># Case 2: remove this reshape if it produces the original shape</span><br>                <span class="hljs-built_in">input</span>, shape = node.args[:<span class="hljs-number">2</span>]<br>                input_shape = <span class="hljs-built_in">input</span>.meta[<span class="hljs-string">&quot;val&quot;</span>].shape<br>                <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(shape) != <span class="hljs-built_in">len</span>(input_shape):<br>                    <span class="hljs-comment"># Reshape changing rank, skip</span><br>                    <span class="hljs-keyword">continue</span><br><br>                <span class="hljs-keyword">if</span> shape.count(-<span class="hljs-number">1</span>) &gt; <span class="hljs-number">1</span>:<br>                    <span class="hljs-comment"># Invalid reshape args, skip</span><br>                    <span class="hljs-keyword">continue</span><br><br>                <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.reshape_all_dims_equivalent(shape, input_shape):<br>                    node.replace_all_uses_with(<span class="hljs-built_in">input</span>)<br>                    graph.erase_node(node)<br>                    count += <span class="hljs-number">1</span><br><br>            <span class="hljs-keyword">elif</span> is_func(node, torch.ops.aten.<span class="hljs-built_in">slice</span>.Tensor):<br>                <span class="hljs-comment"># python slicing semantics are different from reshape</span><br>                <span class="hljs-comment"># Don&#x27;t treat -1 as inferred dimension</span><br>                <span class="hljs-built_in">input</span>, dim_index, start, end = node.args[:<span class="hljs-number">4</span>]<br>                input_shape = <span class="hljs-built_in">input</span>.meta[<span class="hljs-string">&quot;val&quot;</span>].shape<br>                output_shape = node.meta[<span class="hljs-string">&quot;val&quot;</span>].shape<br><br>                <span class="hljs-keyword">if</span> output_shape == input_shape:<br>                    node.replace_all_uses_with(<span class="hljs-built_in">input</span>)<br>                    graph.erase_node(node)<br>                    count += <span class="hljs-number">1</span><br><br>            <span class="hljs-keyword">elif</span> is_func(node, torch.ops.aten.slice_scatter.default):<br>                base, view, dim_index, start, end = node.args[:<span class="hljs-number">5</span>]<br>                base_shape = base.meta[<span class="hljs-string">&quot;val&quot;</span>].shape<br>                view_shape = view.meta[<span class="hljs-string">&quot;val&quot;</span>].shape<br><br>                <span class="hljs-keyword">if</span> base_shape == view_shape:<br>                    node.replace_all_uses_with(view)<br>                    graph.erase_node(node)<br>                    count += <span class="hljs-number">1</span><br><br>        logger.debug(<span class="hljs-string">&quot;Removed %s no-op reshapes and slices&quot;</span>, count)<br></code></pre></td></tr></table></figure></p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+</div>
+
+
+              
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/p/2971588407/" title="rope">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">rope</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/p/3714971887/" title="简易版 pdb watchpoint">
+                        <span class="hidden-mobile">简易版 pdb watchpoint</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+    <div class="statistics">
+  
+  
+
+  
+    
+      <span id="leancloud-site-pv-container" style="display: none">
+        总访问量 
+        <span id="leancloud-site-pv"></span>
+         次
+      </span>
+    
+    
+      <span id="leancloud-site-uv-container" style="display: none">
+        总访客数 
+        <span id="leancloud-site-uv"></span>
+         人
+      </span>
+    
+    
+
+  
+
+</div>
+
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.10/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script defer src="/js/leancloud.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>
