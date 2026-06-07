@@ -1,0 +1,1493 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=light>
+
+
+
+<head>
+  <meta charset="UTF-8">
+
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/zjy.jpg">
+  <link rel="icon" href="https://s3.bmp.ovh/imgs/2022/07/12/3c5aec6ab5c15352.jpg">
+  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Jiangyun Zhu">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="vLLM的torch.compile集成在网上资料非常少，官方写的有一篇博客 和文档 但是很多相关的介绍都是语焉不详，只有宏观上的介绍，没有具体的细节。  笔者正在写这篇的时候，BBuf 发了一篇类似的文章[https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;p&#x2F;1955402895890560120]  所以笔者决定自己写一篇。 torch.compile 介绍 这个网上的介绍已经非常多了，在">
+<meta property="og:type" content="article">
+<meta property="og:title" content="vllm-torch-compile-integration">
+<meta property="og:url" content="http://riverclouds.net/p/3525412134/index.html">
+<meta property="og:site_name" content="riverclouds">
+<meta property="og:description" content="vLLM的torch.compile集成在网上资料非常少，官方写的有一篇博客 和文档 但是很多相关的介绍都是语焉不详，只有宏观上的介绍，没有具体的细节。  笔者正在写这篇的时候，BBuf 发了一篇类似的文章[https:&#x2F;&#x2F;zhuanlan.zhihu.com&#x2F;p&#x2F;1955402895890560120]  所以笔者决定自己写一篇。 torch.compile 介绍 这个网上的介绍已经非常多了，在">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2025-10-05T08:16:38.000Z">
+<meta property="article:modified_time" content="2026-03-19T14:09:38.000Z">
+<meta property="article:author" content="Jiangyun Zhu">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+  
+  <title>vllm-torch-compile-integration - riverclouds</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1749284_5i9bdhy70f8.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+  
+<link rel="stylesheet" href="/css/trakt/iconfont.css">
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"riverclouds.net","root":"/","version":"1.9.9","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":false},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"expand_all":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"tencent":{"sid":null,"cid":null},"leancloud":{"app_id":"mWFBKEzCCHdRIBnFXmqtMjOw-gzGzoHsz","app_key":"rRz69xIsKIR8svfesk7TGbvW","server_url":"https://mwfbkezc.lc-cn-n1-shared.com","path":"window.location.pathname","ignore_local":true},"openkounter":{"server_url":"https://open-kounter.mintimate.cn","path":"window.location.pathname","ignore_local":false},"umami":{"src":null,"website_id":null,"domains":null,"start_time":"2024-01-01T00:00:00.000Z","token":null,"api_server":null},"gtag":null,"woyaola":null,"cnzz":null},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+  
+    
+  
+
+
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"><link rel="alternate" href="/atom.xml" title="riverclouds" type="application/atom+xml">
+</head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>riverclouds</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content (desktop) -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/links/" target="_self">
+                <i class="iconfont icon-link-fill"></i>
+                <span>友链</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile grid menu overlay -->
+<div id="mobile-grid-menu" class="d-lg-none">
+  <div class="mobile-grid-menu-inner">
+    <div class="container">
+      <div class="row">
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-home-fill"></i>
+                  <span>首页</span>
+                </div>
+              </a>
+            </div>
+          
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/archives/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-archive-fill"></i>
+                  <span>归档</span>
+                </div>
+              </a>
+            </div>
+          
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/about/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-user-fill"></i>
+                  <span>关于</span>
+                </div>
+              </a>
+            </div>
+          
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/links/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-link-fill"></i>
+                  <span>友链</span>
+                </div>
+              </a>
+            </div>
+          
+        
+        
+          <div class="col-4 mobile-grid-cell" id="mobile-search-btn">
+            <a href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <div class="mobile-grid-item">
+                <i class="iconfont icon-search"></i>
+                <span>搜索</span>
+              </div>
+            </a>
+          </div>
+        
+        
+          <div class="col-4 mobile-grid-cell" id="mobile-color-toggle-btn"
+               data-label-light="开灯"
+               data-label-dark="关灯">
+            <a href="javascript:;" aria-label="Color Toggle">
+              <div class="mobile-grid-item">
+                <i class="iconfont icon-dark" id="mobile-color-toggle-icon"></i>
+                <span id="mobile-color-toggle-label">关灯</span>
+              </div>
+            </a>
+          </div>
+        
+      </div>
+    </div>
+  </div>
+</div>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="vllm-torch-compile-integration"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2025-10-05 16:16" pubdate>
+          2025年10月5日
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          19k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          158 分钟
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">vllm-torch-compile-integration</h1>
+            
+              <p id="updated-time" class="note note-info" style="">
+                
+                  
+                    本文最后更新于 2026年3月19日
+                  
+                
+              </p>
+            
+            
+              <div class="markdown-body">
+                
+                <p>vLLM的<code>torch.compile</code>集成在网上资料非常少，官方写的有一篇<a
+target="_blank" rel="noopener" href="https://blog.vllm.ai/2025/08/20/torch-compile.html">博客</a> 和<a
+target="_blank" rel="noopener" href="https://docs.vllm.ai/en/latest/design/torch_compile.html">文档</a></p>
+<p>但是很多相关的介绍都是语焉不详，只有宏观上的介绍，没有具体的细节。</p>
+<blockquote>
+<p>笔者正在写这篇的时候，<a
+target="_blank" rel="noopener" href="https://www.zhihu.com/people/zhang-xiao-yu-45-67-74">BBuf</a>
+发了一篇类似的文章[https://zhuanlan.zhihu.com/p/1955402895890560120]</p>
+</blockquote>
+<p>所以笔者决定自己写一篇。</p>
+<h2 id="torch.compile">torch.compile</h2>
+<h3 id="介绍">介绍</h3>
+<p>这个网上的介绍已经非常多了，在此就不再赘述。</p>
+<p>需要明确的是，<code>torch.compile</code>包括两个重要的组成部分：<code>Dynamo</code>和<code>Inductor</code></p>
+<p>整个编译过程大概是下面这样，具体可以参考<a
+target="_blank" rel="noopener" href="https://fkong.tech/posts/2024-09-01-torch-compile-stack/">这篇博客</a></p>
+<ul>
+<li>使用 TorchDynamo 来 trace 函数</li>
+<li>xxxx</li>
+<li>Inductor 运行 post_grad_passes，优化计算图。</li>
+<li>xxxx</li>
+</ul>
+<h3 id="自定义backend">自定义backend</h3>
+<p><code>torch.compile</code>提供了使用自定义<code>backend</code>的的接口，具体参考这篇<a
+target="_blank" rel="noopener" href="https://docs.pytorch.org/docs/stable/torch.compiler_custom_backends.html">文档</a></p>
+<p><code>backend</code>函数需要符合这样的接口 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs python">(gm: torch.fx.GraphModule, example_inputs: <span class="hljs-type">List</span>[torch.Tensor]) -&gt; <span class="hljs-type">Callable</span><br></code></pre></td></tr></table></figure>
+自定义的后端会被 <code>Dynamo</code>
+调用，接收一个<code>fx graph</code>，后端需要返回优化后的、等价的<code>fx graph</code>。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">import</span> torch<br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">my_custom_backend</span>(<span class="hljs-params">gm, example_inputs</span>):<br>    <span class="hljs-keyword">return</span> gm.forward<br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">f</span>(<span class="hljs-params">...</span>):<br>    ...<br><br>f_opt = torch.<span class="hljs-built_in">compile</span>(f, backend=my_custom_backend)<br><br><span class="hljs-meta">@torch.compile(<span class="hljs-params">backend=my_custom_backend</span>)</span><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">g</span>(<span class="hljs-params">...</span>):<br>    ...<br></code></pre></td></tr></table></figure>
+<h3 id="自定义pass">自定义pass</h3>
+<blockquote>
+<p>本节主要参考了下面两篇文档</p>
+</blockquote>
+<ul>
+<li><a
+target="_blank" rel="noopener" href="https://docs.pytorch.org/docs/stable/torch.compiler_transformations.html">官方文档：Writing
+Graph Transformations on ATen IR</a></li>
+<li><a
+target="_blank" rel="noopener" href="https://docs.pytorch.org/tutorials/intermediate/torch_compile_conv_bn_fuser.html">官方教程:
+Building a Convolution/Batch Norm fuser with torch.compile</a></li>
+</ul>
+<p>当<code>torch.compile</code>官方提供的<code>pass</code>不满足要求的时候可以选择添加自定义<code>pass</code>。</p>
+<p>官方总结了这么几种添加<code>pass</code>的目的</p>
+<ul>
+<li>Axis A: 1. Creating one-to-X mapping (eg. decomposition) 2. Creating
+many-to-one mapping (eg. fusion)</li>
+<li>Axis B: 1. Doing forwards iteration (eg. shape propagation) 2. Doing
+backwards iteration (eg. dead code elimination)</li>
+<li>Axis C: 1. Dependent on local node information (eg. out-variant
+conversion) 2. Dependent on global graph information (eg. memory
+planning)</li>
+</ul>
+<p>修改计算图最直接的方式就是直接操作生成的<code>fx graph</code>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">replace_add_with_mul</span>(<span class="hljs-params">gm: torch.fx.GraphModule</span>) -&gt; torch.fx.GraphModule:<br>    <span class="hljs-keyword">for</span> node <span class="hljs-keyword">in</span> gm.graph.nodes:<br>        <span class="hljs-keyword">if</span> node.op == <span class="hljs-string">&quot;call_function&quot;</span> <span class="hljs-keyword">and</span> node.target == torch.ops.aten.add.Tensor:<br>            node.target = torch.ops.aten.mul.Tensor<br></code></pre></td></tr></table></figure>
+<code>replace_add_with_mul</code>会把所有的<code>add</code>操作都替换为<code>mul</code>。</p>
+<p>当然直接操作计算图是比较繁琐的，所以<code>pytorch</code>也提供了一些比较方便的
+helper utilities。</p>
+<p>我目前接触过的，大概有三种<code>pytorch</code>提供的自定义<code>pass</code>的方式</p>
+<ul>
+<li><code>torch.fx.Transformer</code></li>
+<li><code>subgraph_rewriter</code></li>
+<li><code>pattern matcher</code></li>
+</ul>
+<h4 id="torch.fx.transformer">torch.fx.Transformer</h4>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">class</span> <span class="hljs-title class_">ReplaceAddWithMul</span>(torch.fx.Transformer):<br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">call_function</span>(<span class="hljs-params">self, target, args, kwargs</span>):<br>        <span class="hljs-keyword">if</span> target != torch.ops.aten.add.Tensor:<br>            <span class="hljs-keyword">return</span> <span class="hljs-built_in">super</span>().call_function(target, args, kwargs)<br>        <span class="hljs-keyword">return</span> <span class="hljs-built_in">super</span>().call_function(torch.ops.aten.mul.Tensor, args, kwargs)<br><br>transformed_graph_module = ReplaceAddWithMul(graph_module).transform()<br></code></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">class</span> <span class="hljs-title class_">ReplaceAddWithMulSub</span>(torch.fx.Transformer):<br>    <span class="hljs-string">&quot;&quot;&quot;</span><br><span class="hljs-string">    Original:</span><br><span class="hljs-string">        def f(x, y):</span><br><span class="hljs-string">            return x + y</span><br><span class="hljs-string"></span><br><span class="hljs-string">    After pass:</span><br><span class="hljs-string">        def f(x, y):</span><br><span class="hljs-string">            z = x * y</span><br><span class="hljs-string">            return z - y</span><br><span class="hljs-string">    &quot;&quot;&quot;</span><br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">call_function</span>(<span class="hljs-params">self, target, args, kwargs</span>):<br>        <span class="hljs-keyword">if</span> target != torch.ops.aten.add.Tensor:<br>            <span class="hljs-keyword">return</span> <span class="hljs-built_in">super</span>().call_function(target, args, kwargs)<br><br>        x, y = args<br><br>        mul_res = <span class="hljs-built_in">super</span>().call_function(torch.ops.aten.mul.Tensor, args, &#123;&#125;)<br>        <span class="hljs-keyword">return</span> <span class="hljs-built_in">super</span>().call_function(torch.ops.aten.sub.Tensor, (mul_res, y), &#123;&#125;)<br><br>transformed_graph_module = ReplaceAddWithMulSub(graph_module).transform()<br></code></pre></td></tr></table></figure>
+<p>这种方式只能比较方便地对一个 node 做变换。</p>
+<h4 id="subgraph_rewriter">subgraph_rewriter</h4>
+<p>如果想要实现 fusion，就需要 X-&gt;one 或者 X-&gt;Y 的能力</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">from</span> torch.fx <span class="hljs-keyword">import</span> subgraph_rewriter<br><span class="hljs-comment"># This is an inplace operation.</span><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">replace_patterns</span>(<span class="hljs-params">graph_module</span>):<br>    <span class="hljs-string">&quot;&quot;&quot;</span><br><span class="hljs-string">    Original:</span><br><span class="hljs-string">        def f(x, y):</span><br><span class="hljs-string">            x = x + y</span><br><span class="hljs-string">            x = x * y</span><br><span class="hljs-string">            return x</span><br><span class="hljs-string"></span><br><span class="hljs-string">    After pass:</span><br><span class="hljs-string">        def f(x, y):</span><br><span class="hljs-string">            return x - y</span><br><span class="hljs-string">    &quot;&quot;&quot;</span><br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">pattern</span>(<span class="hljs-params">x, y</span>):<br>        x = torch.ops.aten.add.Tensor(x, y)<br>        x = torch.ops.aten.mul.Tensor(x, y)<br>        <span class="hljs-keyword">return</span> x<br><br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">replacement</span>(<span class="hljs-params">x, y</span>):<br>        <span class="hljs-keyword">return</span> torch.ops.aten.sub.Tensor(x, y)<br><br>replaced_patterns = subgraph_rewriter.replace_pattern_with_filters(<br>    traced_module, pattern, replacement<br>)<br></code></pre></td></tr></table></figure>
+<h4 id="pattern-matcher">pattern matcher</h4>
+<p>看起来<code>pattern matcher</code>和<code>subgraph_rewriter</code>非常相似，我也没搞明白他们俩的区别和联系是什么，为什么要搞两套api</p>
+<p>具体可以参考<a
+target="_blank" rel="noopener" href="https://docs.pytorch.org/tutorials/intermediate/torch_compile_conv_bn_fuser.html">这篇教程</a>，有一个完整的例子。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">pattern</span>(<span class="hljs-params">x, y</span>):<br>        x = torch.ops.aten.add.Tensor(x, y)<br>        x = torch.ops.aten.mul.Tensor(x, y)<br>        <span class="hljs-keyword">return</span> x<br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">replacement</span>(<span class="hljs-params">x, y</span>):<br>        <span class="hljs-keyword">return</span> torch.ops.aten.sub.Tensor(x, y)<br><br>example_inputs = [<br>    torch.randn(<span class="hljs-number">1</span>, <span class="hljs-number">4</span>),<br>    torch.randn(<span class="hljs-number">1</span>, <span class="hljs-number">1</span>),<br>]<br><br><span class="hljs-keyword">from</span> torch._inductor.pattern_matcher <span class="hljs-keyword">import</span> PatternMatcherPass<br><span class="hljs-keyword">from</span> torch._inductor <span class="hljs-keyword">import</span> config<br><br><span class="hljs-comment"># Create a pattern matcher pass and register our pattern</span><br>patterns = PatternMatcherPass()<br><br>register_replacement(<br>    pattern,<br>    replacement,<br>    example_inputs,<br>    pm.fwd_only,<br>    patterns,<br>)<br><br><span class="hljs-comment"># Create a custom pass function that applies our patterns</span><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">fusion_pass</span>(<span class="hljs-params">graph</span>):<br>    <span class="hljs-keyword">return</span> patterns.apply(graph)<br><br><span class="hljs-comment"># Set our custom pass in the config</span><br>config.post_grad_custom_post_pass = fusion_pass<br></code></pre></td></tr></table></figure>
+<p>这个 api 我用的时候还是有些问题，比如说 <code>pattern</code>
+的参数不能是常量，一定要是 tensor。
+所以如果某个参数是常量，并且有多个可能的取值，那就只能针对每个取值都生成一个<code>pass</code>，取值有无限多个的情况我也不知道怎么办。</p>
+<h4 id="pass-manager">Pass Manager</h4>
+<p>当后端有了多个自定义<code>pass</code>的时候，他们会统一在<code>pass manager</code>处理。</p>
+<p>示意代码如下： <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">class</span> <span class="hljs-title class_">PassManager</span>:<br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self</span>):<br>        <span class="hljs-variable language_">self</span>.passes: <span class="hljs-built_in">list</span>[InductorPass] = []<br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__call__</span>(<span class="hljs-params">self, graph: fx.Graph</span>):<br>        <span class="hljs-keyword">for</span> pass_ <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.passes:<br>            pass_(graph)<br>                VllmInductorPass.dump_prefix += <span class="hljs-number">1</span><br>        <span class="hljs-variable language_">self</span>.post_cleanup(graph)<br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">add</span>(<span class="hljs-params">self, pass_: InductorPass</span>):<br>        <span class="hljs-keyword">assert</span> <span class="hljs-built_in">isinstance</span>(pass_, InductorPass)<br>        <span class="hljs-variable language_">self</span>.passes.append(pass_)<br></code></pre></td></tr></table></figure></p>
+<h2 id="vllm如何利用torch.compile">vLLM如何利用torch.compile</h2>
+<p>上面那部分更偏<code>torch.compile</code>本身，这一节专门讲 vLLM
+源码是怎么把这套机制用起来的。</p>
+<ol type="1">
+<li><code>@support_torch_compile</code> 给模型类注入编译能力</li>
+<li><code>TorchCompileWithNoGuardsWrapper</code> 负责真正调用
+<code>torch.compile</code></li>
+<li><code>CompilationConfig.init_backend()</code> 在
+<code>VLLM_COMPILE</code> 模式下返回 <code>VllmBackend</code></li>
+<li><code>VllmBackend</code> 负责 cache、图切分、按 range 预编译、挂载
+post-grad passes</li>
+<li><code>PiecewiseBackend</code> 在运行时按 token
+数选择合适的已编译子图</li>
+</ol>
+<h3
+id="入口support_torch_compile">入口：<code>@support_torch_compile</code></h3>
+<p>它主要做了几件事：</p>
+<ul>
+<li>推断或者接收 <code>dynamic_arg_dims</code></li>
+<li>把 <code>TorchCompileWithNoGuardsWrapper</code>
+动态加到类的基类里</li>
+<li>在新的 <code>__init__</code> 里根据
+<code>CompilationMode</code>、<code>enable_if</code>、<code>ignore_torch_compile</code>
+等条件决定要不要真的编译</li>
+<li>在第一次调用时给输入打 dynamic shape 标记</li>
+<li>在 AOT compile 打开时尝试从磁盘直接加载已编译产物</li>
+</ul>
+<p>简化一下，入口大概是这样：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">_support_torch_compile</span>(<span class="hljs-params">cls, dynamic_arg_dims, ...</span>):<br>    cls.__bases__ = cls.__bases__ + (TorchCompileWithNoGuardsWrapper,)<br>    old_init = cls.__init__<br><br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, *, vllm_config=<span class="hljs-literal">None</span>, prefix=<span class="hljs-string">&quot;&quot;</span>, **kwargs</span>):<br>        old_init(<span class="hljs-variable language_">self</span>, ...)<br>        <span class="hljs-variable language_">self</span>.vllm_config = vllm_config<br>        <span class="hljs-variable language_">self</span>.compilation_config = vllm_config.compilation_config<br>        <span class="hljs-variable language_">self</span>.do_not_compile = (<br>            <span class="hljs-variable language_">self</span>.compilation_config.mode <span class="hljs-keyword">in</span> [CompilationMode.NONE,<br>                                             CompilationMode.STOCK_TORCH_COMPILE]<br>            <span class="hljs-keyword">or</span> ...<br>        )<br>        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-variable language_">self</span>.do_not_compile:<br>            TorchCompileWithNoGuardsWrapper.__init__(<span class="hljs-variable language_">self</span>)<br><br>    cls.__init__ = __init__<br></code></pre></td></tr></table></figure>
+<p>这里有两个很关键的点。</p>
+<p>第一，vLLM 不是完全依赖 Dynamo
+自己去猜哪些维度是动态的，而是会在第一次编译前显式调用
+<code>torch._dynamo.mark_dynamic</code> / <code>mark_unbacked</code>
+去标记输入维度。</p>
+<p>第二，vLLM 会在 tracing 期间收集 <code>forward</code>
+相关源码文件。做法有点“黑科技”：它会 patch
+<code>InliningInstructionTranslator.inline_call_</code>，把 Dynamo
+内联到的函数所在文件都记下来，后面把这些文件内容也纳入 compile cache 的
+hash。这样一旦模型相关 Python 源码改了，cache
+就会失效并触发重新编译。</p>
+<h3
+id="torchcompilewithnoguardswrapper核心目标是-trace-once"><code>TorchCompileWithNoGuardsWrapper</code>：核心目标是
+trace once</h3>
+<p>从实现目标上看，vLLM 并不只是“套了一层
+<code>torch.compile</code>”，而是在围绕下面几个目标组织运行时：</p>
+<ul>
+<li>尽量只做一次 Dynamo tracing</li>
+<li>尽量把 guard 去掉，避免运行时开销</li>
+<li>在需要的时候自己接管不同 shape range 的编译与调度</li>
+</ul>
+<p><code>TorchCompileWithNoGuardsWrapper.__init__</code>
+里最终还是会调用 <code>torch.compile</code>：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-variable language_">self</span>._compiled_callable = torch.<span class="hljs-built_in">compile</span>(<br>    compiled_ptr,<br>    fullgraph=<span class="hljs-literal">True</span>,<br>    dynamic=<span class="hljs-literal">False</span>,<br>    backend=backend,<br>    options=options,<br>)<br></code></pre></td></tr></table></figure>
+<p>但它会根据配置额外做几件事：</p>
+<ul>
+<li>非 <code>STOCK_TORCH_COMPILE</code> 模式下，通过
+<code>guard_filter_fn</code> 跳过大部分 guards</li>
+<li><code>UNBACKED</code> dynamic shapes 时改走
+<code>check_invariants_and_forward</code></li>
+<li>可选启用 AOT compile</li>
+<li>可选用 bytecode hook 保存 Dynamo 变换后的 code object，后续直接
+dispatch 到编译后的 bytecode</li>
+</ul>
+<p>如果还是有点抽象，可以把它理解成“把 <code>torch.compile</code>
+拆成了两层”：</p>
+<ul>
+<li>Dynamo 这一层：尽量只 trace 一次，别反复回到 Python
+重新分析字节码</li>
+<li>后端执行这一层：可以继续按不同 shape range 准备不同的已编译版本</li>
+</ul>
+<p>举个简化例子。假设有这样一个模块：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">class</span> <span class="hljs-title class_">Toy</span>(torch.nn.Module):<br>    <span class="hljs-keyword">def</span> <span class="hljs-title function_">forward</span>(<span class="hljs-params">self, x</span>):<br>        <span class="hljs-keyword">return</span> x * <span class="hljs-number">2</span><br></code></pre></td></tr></table></figure>
+<p>如果直接写：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs python">toy = torch.<span class="hljs-built_in">compile</span>(Toy())<br>toy(torch.randn(<span class="hljs-number">4</span>, <span class="hljs-number">128</span>))<br>toy(torch.randn(<span class="hljs-number">8</span>, <span class="hljs-number">128</span>))<br></code></pre></td></tr></table></figure>
+<p>PyTorch 默认会保留一批 guards。只要它判断新输入不满足旧
+guards，就可能重新走一遍 Dynamo tracing，生成新的编译结果。</p>
+<p>而 vLLM 的思路更像是：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs python">model = TorchCompileWithNoGuardsWrapper(...)<br><br><span class="hljs-comment"># 第一次调用时：</span><br><span class="hljs-comment"># 1. 标记动态维度</span><br><span class="hljs-comment"># 2. Dynamo trace 一次</span><br><span class="hljs-comment"># 3. 尽量丢掉 guards</span><br><span class="hljs-comment"># 4. 把后续真正执行的逻辑交给 backend</span><br><br>model(x_bs_4)<br>model(x_bs_8)<br>model(x_bs_16)<br></code></pre></td></tr></table></figure>
+<p>后面 batch size 变了，vLLM 希望避免“因为 guards 不匹配而重新回到
+Dynamo 重新 trace Python”。如果需要针对不同 shape
+做不同优化，它更倾向于在 backend 这一层处理，例如把
+<code>[1, 8]</code>、<code>[9, 16]</code> 编成不同 range
+的子图，然后运行时只做 dispatch。</p>
+<p>所以 <code>TorchCompileWithNoGuardsWrapper</code>
+的职责不是自己完成所有优化，而是先把最上面那层“trace once”稳住，把后面的
+shape-specialization、cache、piecewise compile 交给
+<code>VllmBackend</code> 这一层。</p>
+<h3
+id="compilationmode.vllm_compile-会返回-vllmbackend"><code>CompilationMode.VLLM_COMPILE</code>
+会返回 <code>VllmBackend</code></h3>
+<p>现在 <code>CompilationConfig.init_backend()</code>
+里，三种模式的分工已经很清楚了：</p>
+<ul>
+<li><code>STOCK_TORCH_COMPILE</code> /
+<code>DYNAMO_TRACE_ONCE</code>：直接返回普通 PyTorch backend 或自定义
+backend</li>
+<li><code>VLLM_COMPILE</code>：返回
+<code>VllmBackend(vllm_config)</code></li>
+</ul>
+<h3 id="vllmbackend-在做什么"><code>VllmBackend</code> 在做什么</h3>
+<p><code>VllmBackend</code>
+是这一节最关键的类。它的工作可以概括成下面几步。</p>
+<h4 id="配置-cache">1. 配置 cache</h4>
+<p>它会综合下面这些因素计算 cache key：</p>
+<ul>
+<li>环境变量相关因素</li>
+<li><code>VllmConfig</code> 的哈希</li>
+<li>compiler 自身相关因素</li>
+<li>Dynamo tracing 过程中记录到的源码文件内容</li>
+</ul>
+<p>然后把 cache 放到类似下面的目录里：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">VLLM_CACHE_ROOT/torch_compile_cache/&lt;hash&gt;/rank_&lt;rank&gt;_&lt;dp_rank&gt;/&lt;prefix&gt;/<br></code></pre></td></tr></table></figure>
+<p>并且 <code>CompilerManager</code> 会把缓存索引存成一个 Python
+文件，key 形如：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs python">(compile_range, graph_index, compiler_name) -&gt; handle<br></code></pre></td></tr></table></figure>
+<h4 id="把-post-grad-pass-manager-接到-inductor-上">2. 把 post-grad pass
+manager 接到 Inductor 上</h4>
+<p><code>VllmBackend.configure_post_pass()</code> 会创建
+<code>PostGradPassManager</code>，再把它挂到当前平台对应的 inductor hook
+上。这样之后每个 FX graph 在进 Inductor 时，都会先跑 vLLM 自己的
+post-grad passes。</p>
+<p>这个阶段还支持把用户自己通过
+<code>inductor_compile_config[pass_key]</code> 传入的 pass，追加到 pass
+manager 里。</p>
+<p>这里的“挂载 post-grad passes”可以直接理解成：把 vLLM
+自己的图变换函数注册到 Inductor 的一个回调槽位里。</p>
+<p>流程大概是这样：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs python">fx_graph = Dynamo(...).trace(...)<br><br>inductor_config[pass_key] = PostGradPassManager(...)<br><br>compiled = Inductor.<span class="hljs-built_in">compile</span>(fx_graph, config=inductor_config)<br></code></pre></td></tr></table></figure>
+<p>当 Inductor 真正开始处理这个 <code>fx_graph</code> 时，会先调用：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs python">PostGradPassManager(graph)<br></code></pre></td></tr></table></figure>
+<p>vLLM里也就是：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs python">NoOpEliminationPass(graph)<br>SequenceParallelismPass(graph)<br>RMSNormQuantFusionPass(graph)<br>...<br>PostCleanupPass(graph)<br>FixFunctionalizationPass(graph)<br></code></pre></td></tr></table></figure>
+<p>跑完这些 pass 之后，Inductor 才继续做后面的 lowering 和 codegen。</p>
+<p>“post-grad”这个名字本身比较容易让人误会，好像是在 backward
+之后再处理一遍图。这里其实主要是沿用 PyTorch/Inductor
+里的术语，表示“这是挂在 Inductor 的 post-grad custom pass hook 上的
+pass”。对于 vLLM 这种 inference 场景，更好理解的说法是：</p>
+<ul>
+<li>Dynamo 先把 Python 代码变成 FX graph</li>
+<li>AOTAutograd / Inductor 会拿到一个 functionalized graph</li>
+<li>vLLM 在 Inductor 正式生成 kernel 之前，先对这张 graph
+做一轮自己的改写</li>
+</ul>
+<p>所以“挂载 post-grad passes”本质上就是：在 Inductor
+开始代码生成之前，先插入一层 vLLM 自己的 FX graph rewrite。</p>
+<h4 id="决定是在-fx-层切图还是让-inductor-自己-partition">3. 决定是在 FX
+层切图，还是让 Inductor 自己 partition</h4>
+<p>如果 <code>use_inductor_graph_partition=False</code>，vLLM 会在 FX
+层按 <code>splitting_ops</code> 手工切图：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-variable language_">self</span>.split_gm, <span class="hljs-variable language_">self</span>.piecewise_graphs = split_graph(graph, fx_split_ops)<br></code></pre></td></tr></table></figure>
+<p>如果 <code>use_inductor_graph_partition=True</code>，那就不在 FX
+层切，而是把 <code>splitting_ops</code> 注册成 Inductor partition
+rule，让 partition 在更晚的 codegen 阶段发生。这样 custom passes
+看到的是更完整的图，更容易做 fusion。</p>
+<h4 id="为每个子图创建-piecewisebackend">4. 为每个子图创建
+<code>PiecewiseBackend</code></h4>
+<p><code>PiecewiseCompileInterpreter</code>
+会遍历切出来的子模块，把真正需要编译的 submodule 替换成
+<code>PiecewiseBackend</code>。<code>PiecewiseBackend</code>
+会在初始化时把所有 compile range 先编完：</p>
+<ul>
+<li>对 <code>compile_sizes</code> 里的单点 size 做静态 shape 编译</li>
+<li>对 <code>compile_ranges_endpoints</code> 生成的 range 做通用 shape
+编译</li>
+</ul>
+<p>运行时则根据第一个 symbolic shape 参数来 dispatch：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs python">runtime_shape = args[<span class="hljs-variable language_">self</span>.sym_shape_indices[<span class="hljs-number">0</span>]]<br>range_entry = <span class="hljs-variable language_">self</span>._find_range_for_shape(runtime_shape)<br><span class="hljs-keyword">return</span> range_entry.runnable(*args)<br></code></pre></td></tr></table></figure>
+<p>也就是说，vLLM 不是等到线上跑到某个 batch size
+才临时编译，而是更偏向“冷启动时把需要的几个 range
+预编译好，运行时只做选择”。</p>
+<h4 id="按需叠加-piecewise-cudagraph">5. 按需叠加 piecewise
+cudagraph</h4>
+<p>如果当前配置需要 piecewise
+cudagraph，<code>wrap_with_cudagraph_if_needed()</code> 会再给每个
+<code>PiecewiseBackend</code> 外面包一层 cudagraph wrapper。</p>
+<p>所以这套结构可以理解成：</p>
+<ul>
+<li>Dynamo 只 trace 一次</li>
+<li><code>VllmBackend</code> 把图拆成若干段</li>
+<li>每段由 <code>PiecewiseBackend</code> 预编译多个 shape 版本</li>
+<li>每段外面还可以再套 cudagraph</li>
+</ul>
+<h3
+id="compile_sizes-和-compile_ranges_endpoints"><code>compile_sizes</code>
+和 <code>compile_ranges_endpoints</code></h3>
+<p>这里有一个很值得单独强调的点。</p>
+<p>vLLM 里同时存在两种“编译粒度”：</p>
+<ul>
+<li><code>compile_sizes</code>：对某些固定 token 数做精确编译，例如
+<code>[1, 2, 4, 8]</code></li>
+<li><code>compile_ranges_endpoints</code>：对一个区间做通用编译，例如
+<code>[1, 8]</code>、<code>[9, 16]</code></li>
+</ul>
+<p>而且单点 size 的优先级更高。如果同时存在 <code>[1, 8]</code> 和 size
+<code>4</code>，那运行到 <code>4</code> 时会优先走单点 size
+对应的已编译图，而不是通用 range 图。</p>
+<h3 id="pass-manager-顺序">pass manager 顺序</h3>
+<p>当前实现里的实际执行顺序是：</p>
+<ol type="1">
+<li><code>PassConfig</code> 打开的内建 passes</li>
+<li>用户额外注入的 custom pass</li>
+<li><code>PostCleanupPass</code></li>
+<li><code>FixFunctionalizationPass</code></li>
+</ol>
+<p>这里最好不要把这四项都理解成同一类东西。更准确地说，它们分成两组：</p>
+<ul>
+<li>前两项是“真正做图变换的 pass”</li>
+<li>后两项是“收尾 pass”</li>
+</ul>
+<p>先看前两项。</p>
+<h3 id="passconfig-打开的内建-passes">1. <code>PassConfig</code>
+打开的内建 passes</h3>
+<p>这一类 pass 是 vLLM 自己实现、自己维护的 pass。它们都在
+<code>vllm/compilation/passes/</code> 下面，由
+<code>PostGradPassManager.configure()</code> 根据
+<code>PassConfig</code> 的开关决定要不要加入
+<code>self.passes</code>。</p>
+<p>例如源码里会按条件加入这些 pass：</p>
+<ul>
+<li><code>NoOpEliminationPass</code></li>
+<li><code>SequenceParallelismPass</code></li>
+<li><code>AsyncTPPass</code></li>
+<li><code>AllReduceFusionPass</code></li>
+<li><code>RMSNormQuantFusionPass</code></li>
+<li><code>ActivationQuantFusionPass</code></li>
+<li><code>AttnFusionPass</code></li>
+<li><code>RopeKVCacheFusionPass</code></li>
+<li><code>QKNormRoPEFusionPass</code></li>
+</ul>
+<h3 id="用户额外注入的-custom-pass">2. 用户额外注入的 custom pass</h3>
+<p>这一项不是 vLLM 默认内建的 pass，而是给使用者留的扩展口。</p>
+<p><code>VllmBackend.configure_post_pass()</code> 会检查当前平台对应的
+<code>pass_key</code>。如果用户在
+<code>inductor_compile_config[pass_key]</code> 里额外放了一个
+pass，那么这个 pass 也会被追加到 <code>PostGradPassManager</code>
+里。</p>
+<p>可以把它理解成：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs python">pass_manager = PostGradPassManager()<br>pass_manager.add(vllm_builtin_passes...)<br>pass_manager.add(user_custom_pass)<br></code></pre></td></tr></table></figure>
+<p>也就是说，vLLM 先把自己那套 pass 配好，然后再给用户一个“在同一个 hook
+里再插一个 pass”的机会。</p>
+<h3 id="postcleanuppass">3. <code>PostCleanupPass</code></h3>
+<p>从这个 pass 开始，就不是“做某个具体优化”的 pass 了，而是收尾。</p>
+<p><code>PostCleanupPass</code> 做的事情很简单：</p>
+<ul>
+<li>把 graph 重新做一遍稳定的拓扑排序</li>
+<li>删除已经没有用户的 dead code</li>
+</ul>
+<p>为什么需要它？因为前面的 pattern matcher / graph rewrite
+在改图之后，不保证图还是干净、拓扑有序的。比如某个 pattern
+被替换掉之后，原来的一些中间节点可能已经没人用了；再比如替换后的节点顺序可能不够规整。</p>
+<p>所以 <code>PostCleanupPass</code> 的作用可以概括成一句话：</p>
+<blockquote>
+<p>前面的 pass 负责“改对图”，它负责“把改完的图整理干净”。</p>
+</blockquote>
+<h3 id="fixfunctionalizationpass">4.
+<code>FixFunctionalizationPass</code></h3>
+<p>这个 pass 也是收尾，但它做的事情比 <code>PostCleanupPass</code>
+更特殊。</p>
+<p>在 Inductor 这一套流水线里，很多自定义算子在图里会先以
+<code>auto_functionalized(...)</code> 的形式出现。这样做有利于 tracing
+和 pattern matching，因为 functionalized graph 更规整、更容易改写。</p>
+<p>但问题是，functionalized 形式往往会引入额外的中间
+tensor、copy，或者把“原地更新”的语义改写成一串看起来更绕的函数式节点。如果直接拿这种图去做最终代码生成，性能和图结构都不理想。</p>
+<p><code>FixFunctionalizationPass</code>
+的作用就是在最后把这些关键节点重新
+defunctionalize，恢复成更接近真实执行语义的形式。它会处理的对象包括：</p>
+<ul>
+<li>rotary embedding</li>
+<li><code>fused_add_rms_norm</code></li>
+<li><code>rms_norm_dynamic_per_token_quant</code></li>
+<li><code>silu_and_mul</code></li>
+<li><code>fused_qk_norm_rope</code></li>
+<li><code>fused_rope_and_unified_kv_cache_update</code></li>
+</ul>
+<p>它必须最后执行，原因也很简单：</p>
+<ul>
+<li>前面的很多 fusion / matcher 更依赖 functionalized graph
+的规整形态</li>
+<li>一旦 defunctionalize 完，图就不再适合继续跑普通的 cleanup / DCE
+了</li>
+</ul>
+<p>所以顺序上可以把这四项理解成：</p>
+<ol type="1">
+<li>先跑 vLLM 自己的优化 pass</li>
+<li>再跑用户自己额外插进来的 pass</li>
+<li>用 <code>PostCleanupPass</code> 把图清理干净</li>
+<li>最后用 <code>FixFunctionalizationPass</code> 把 graph
+从“便于改写的形式”收回到“便于执行的形式”</li>
+</ol>
+<h2 id="vllm-有哪些-pass">vLLM 有哪些 pass</h2>
+<p><code>vllm/config/vllm.py</code> 会按 optimization level 给
+<code>PassConfig</code> 注入默认值：</p>
+<ul>
+<li><code>O0</code>：基本都关</li>
+<li><code>O1</code>：会按条件打开
+<code>fuse_norm_quant</code>、<code>fuse_act_quant</code>、<code>fuse_act_padding</code>、<code>fuse_rope_kvcache</code></li>
+<li><code>O2/O3</code>：进一步按模型类型、量化方式、平台能力打开
+<code>fuse_attn_quant</code>、<code>enable_sp</code>、<code>fuse_gemm_comms</code>、<code>fuse_allreduce_rms</code>
+等</li>
+</ul>
+<p>下面按类别挑几个比较重要的 pass 讲一下。</p>
+<h3 id="noopeliminationpass">1. <code>NoOpEliminationPass</code></h3>
+<p>这个 pass 还是非常重要，但它现在已经不是一个孤立的小优化，而是很多
+fusion pass 的前置清理步骤。</p>
+<p>它会删除三类 no-op：</p>
+<ul>
+<li>reshape 链里中间多余的 reshape</li>
+<li>输出 shape 和输入 shape 等价的 reshape</li>
+<li>输出 shape 和输入 shape 等价的 slice / slice_scatter</li>
+</ul>
+<p>例如：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs python">mul_1 = ...<br>view_1 = torch.reshape(mul_1, [-<span class="hljs-number">1</span>, <span class="hljs-number">128</span>, <span class="hljs-number">32</span>])<br>view_2 = torch.reshape(view_1, [-<span class="hljs-number">1</span>, <span class="hljs-number">4096</span>])<br>view_3 = torch.reshape(view_2, [-<span class="hljs-number">1</span>, <span class="hljs-number">128</span>, <span class="hljs-number">32</span>])<br></code></pre></td></tr></table></figure>
+<p>可以直接化简成：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs python">mul_1 = ...<br>view_3 = torch.reshape(mul_1, [-<span class="hljs-number">1</span>, <span class="hljs-number">128</span>, <span class="hljs-number">32</span>])<br></code></pre></td></tr></table></figure>
+<p>源码里的注释明确写了：<code>RMSNorm-quant fusion</code> 依赖这个
+pass，因为某些路径里 <code>apply_fp8_linear</code> 会额外引入冗余
+reshape。<code>SequenceParallelismPass</code>
+也会在自己做完替换后，调用一次 <code>NoOpEliminationPass</code>
+清掉临时插进去的 slice。</p>
+<h3 id="rmsnormquantfusionpass">2.
+<code>RMSNormQuantFusionPass</code></h3>
+<p>这个 pass 负责把</p>
+<ul>
+<li><code>rms_norm + quant</code></li>
+<li><code>fused_add_rms_norm + quant</code></li>
+</ul>
+<p>替换成单个 fused custom op。</p>
+<p>而且它支持的量化模式也比较多，至少包括：</p>
+<ul>
+<li>static fp8 quant</li>
+<li>dynamic per-token fp8 quant</li>
+<li>group fp8 quant（CUDA 上还有不同 group shape、scale layout、e8m0 /
+TMA 对齐组合）</li>
+</ul>
+<p>它的核心思路还是
+<code>pattern matcher</code>，但模式数量已经很多了。比如同一个
+<code>epsilon</code>，它会把：</p>
+<ul>
+<li>普通 <code>RMSNorm</code></li>
+<li><code>FusedAddRMSNorm</code></li>
+<li>静态量化</li>
+<li>动态量化</li>
+<li>group quant</li>
+</ul>
+<p>这些组合全部注册成 pattern。</p>
+<h3 id="activationquantfusionpass">3.
+<code>ActivationQuantFusionPass</code></h3>
+<p>这个 pass 做的是 MLP 激活这边的 fusion，把：</p>
+<ul>
+<li><code>silu_and_mul + fp8 quant</code></li>
+<li><code>silu_and_mul + nvfp4 quant</code></li>
+</ul>
+<p>替换成 fused op，例如 <code>silu_and_mul_quant</code>。</p>
+<p>相比
+<code>RMSNormQuantFusionPass</code>，它的结构更简单一些，但思路完全一样：先匹配
+unfused pattern，再用 <code>auto_functionalized</code> 的 fused custom
+op 替换。</p>
+<h3 id="attnfusionpass">4. <code>AttnFusionPass</code></h3>
+<p>这个 pass 是把 attention 后面的量化 fuse 进 attention 本身。</p>
+<p>也就是说它不是简单地做“attention
+节点旁边的小修小补”，而是直接尝试把：</p>
+<ul>
+<li><code>attention</code></li>
+<li><code>attention output quant</code></li>
+</ul>
+<p>合并成一个支持 fused output quant 的 attention kernel。</p>
+<p>这里有一个比较有意思的实现细节：它不是写一个完全泛化的 pattern
+去匹配所有 attention，而是先从
+<code>CompilationConfig.static_forward_context</code> 里把具体的
+<code>Attention</code> 层找出来，再按 layer 注册 pattern。这样做的原因是
+attention 层里有一些字符串参数和 layer-specific 元信息，直接 wildcard
+不太现实。</p>
+<h3 id="sequenceparallelismpass">5.
+<code>SequenceParallelismPass</code></h3>
+<p>这个 pass 不是单纯“把通信算子 fuse 一下”，而是先改图的并行策略。</p>
+<p>先约定一下张量形状。下面把某一层 hidden states 记成：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs python">hidden_states.shape = [num_tokens, hidden_size]<br></code></pre></td></tr></table></figure>
+<p>在 tensor parallel 下，Transformer block 里经常会有一类“row
+parallel”线性层。它的特点是：</p>
+<ul>
+<li>每个 rank 只持有一部分权重</li>
+<li>每个 rank 先各自算出一个 partial output</li>
+<li>然后通过 <code>AllReduce(sum)</code> 把这些 partial output
+求和，恢复成完整的 hidden states</li>
+</ul>
+<p>所以在图上常见的结构会是：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs python">partial_output(rank0/rank1/...) -&gt; AllReduce -&gt; RMSNorm -&gt; ...<br></code></pre></td></tr></table></figure>
+<p>如果把它放回到一个更具体的 LLM block
+里，可以把它想成下面这个局部结构：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><code class="hljs text">                        Transformer block 的一小段<br><br>                  +--------------------------------------+<br>hidden_states ---&gt;| attention / MLP 的 row-parallel 投影 |---&gt; partial output<br>                  +--------------------------------------+        (每个 rank 一份)<br>                                                                  |<br>                                                                  v<br>                                                            AllReduce(sum)<br>                                                                  |<br>                                                                  v<br>                                                          full hidden states<br>                                                          shape = [T, H]<br>                                                                  |<br>                                                                  v<br>                                                               RMSNorm<br>                                                                  |<br>                                                                  v<br>                                                               下一层<br></code></pre></td></tr></table></figure>
+<p>这里的关键点在于：<code>RMSNorm</code> 是按 token 独立做的。</p>
+<p>更准确地说，<code>RMSNorm</code> 对每个 token 的 hidden vector
+单独计算均方根并归一化。也就是说它在 hidden dimension 上做归一化，但不同
+token 之间互不依赖。于是：</p>
+<ul>
+<li>它需要每个 token 的完整 hidden dimension</li>
+<li>但它不需要“所有 token 必须都在同一个 rank 上”</li>
+</ul>
+<p>这正是 sequence parallelism 能成立的原因。</p>
+<p>它会把：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs python">AllReduce -&gt; RMSNorm -&gt; Output<br></code></pre></td></tr></table></figure>
+<p>改写成：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs python">ReduceScatter -&gt; local RMSNorm -&gt; AllGather -&gt; Output<br></code></pre></td></tr></table></figure>
+<p>如果后面还接了 quant，也会一起考虑。</p>
+<p>这里顺便解释一下
+<code>ReduceScatter</code>。它可以理解成“<code>AllReduce</code> 的前半段
++ 把结果切开分给各个 rank”。</p>
+<p>例如两个 rank 上分别有：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs python">rank0: [<span class="hljs-number">1</span>, <span class="hljs-number">2</span>, <span class="hljs-number">3</span>, <span class="hljs-number">4</span>]<br>rank1: [<span class="hljs-number">10</span>, <span class="hljs-number">20</span>, <span class="hljs-number">30</span>, <span class="hljs-number">40</span>]<br></code></pre></td></tr></table></figure>
+<p>先做 reduce(sum) 得到：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs python">[<span class="hljs-number">11</span>, <span class="hljs-number">22</span>, <span class="hljs-number">33</span>, <span class="hljs-number">44</span>]<br></code></pre></td></tr></table></figure>
+<p>再 scatter 成两半：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs python">rank0: [<span class="hljs-number">11</span>, <span class="hljs-number">22</span>]<br>rank1: [<span class="hljs-number">33</span>, <span class="hljs-number">44</span>]<br></code></pre></td></tr></table></figure>
+<p>也就是说，<code>AllReduce</code> 是“每个 rank 都拿到完整结果”，而
+<code>ReduceScatter</code> 是“每个 rank 只拿到结果的一部分”。</p>
+<p>这个改写为什么是对的，可以直接从张量形状来理解。</p>
+<p>假设 <code>AllReduce</code> 之后得到的完整输出是
+<code>[T, H]</code>。如果 TP world size = 2，那么
+<code>ReduceScatter(dim=0)</code> 做的事情可以理解成：</p>
+<ol type="1">
+<li>先完成原本 <code>AllReduce(sum)</code> 该做的求和</li>
+<li>但不是把完整的 <code>[T, H]</code> 都留在每个 rank 上</li>
+<li>而是把 token 维切开，让 rank0 拿到前一半 token，rank1 拿到后一半
+token</li>
+</ol>
+<p>于是每个 rank 上拿到的是：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs python">rank0: [T/<span class="hljs-number">2</span>, H]<br>rank1: [T/<span class="hljs-number">2</span>, H]<br></code></pre></td></tr></table></figure>
+<p>注意这里 hidden dimension <code>H</code> 还是完整的，只是 token 维
+<code>T</code> 被分片了。</p>
+<p>而 <code>RMSNorm</code> 恰好只要求“每个 token 的 hidden vector
+是完整的”，并不要求“所有 token 都在当前 rank
+上”。所以它可以完全本地执行：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs text">rank0: local RMSNorm on [T/2, H]<br>rank1: local RMSNorm on [T/2, H]<br></code></pre></td></tr></table></figure>
+<p>如果后面的算子又需要完整的 sequence，再用 <code>AllGather</code> 把
+token 维拼回来即可：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs text">Before:<br>  每个 rank 都持有 [T, H]<br><br>After ReduceScatter:<br>  每个 rank 只持有自己的 token shard [T/TP, H]<br><br>After local RMSNorm:<br>  结果仍然是 [T/TP, H]<br><br>After AllGather:<br>  再恢复成每个 rank 都有完整的 [T, H]<br></code></pre></td></tr></table></figure>
+<p>可以画成下面这样：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><code class="hljs text">原始做法<br><br>rank0 partial ----\<br>rank1 partial ----- AllReduce(sum) -&gt; [T, H] -&gt; RMSNorm([T, H]) -&gt; 下一步<br>rank2 partial ----/<br><br><br>Sequence Parallelism 做法<br><br>rank0 partial ----\<br>rank1 partial ----- ReduceScatter(sum, dim=token) -&gt; rank0:[T/TP,H]<br>rank2 partial ----/                                  rank1:[T/TP,H]<br>                                                     rank2:[T/TP,H]<br>                                                              |<br>                                                              v<br>                                              每个 rank 本地做 RMSNorm([T/TP, H])<br>                                                              |<br>                                                              v<br>                                                AllGather(dim=token) -&gt; [T, H]<br>                                                              |<br>                                                              v<br>                                                           下一步<br></code></pre></td></tr></table></figure>
+<p>所以这个 pass 的收益，重点不在于“RMSNorm
+本身更快了”，而在于它把一段原本夹在 <code>AllReduce</code>
+后面的计算，改成了“通信之后每个 rank
+先各算各的”。这样图里就显式出现了：</p>
+<ul>
+<li><code>ReduceScatter</code></li>
+<li>本地计算</li>
+<li><code>AllGather</code></li>
+</ul>
+<p>后续 <code>AsyncTPPass</code> 才有机会继续识别出：</p>
+<ul>
+<li><code>GEMM + ReduceScatter</code></li>
+<li><code>AllGather + GEMM</code></li>
+</ul>
+<p>这样的模式，并进一步 fuse / overlap compute 和 communication。</p>
+<p>换句话说，<code>SequenceParallelismPass</code>
+更像是在给后续的通信融合“铺路”。</p>
+<p>从性能角度看，它的收益大致有三层。</p>
+<p>第一层是减少重复计算。</p>
+<p>原来的做法里，<code>AllReduce</code> 之后每个 rank 都拿到完整的
+<code>[T, H]</code>，于是每个 rank 都会各自做一遍完整的
+<code>RMSNorm([T, H])</code>。如果 TP world size 是
+<code>N</code>，那这类逐 token 的小算子实际上被重复执行了 <code>N</code>
+次。</p>
+<p>而改成 sequence parallelism 之后，每个 rank 只持有自己的 token shard
+<code>[T/N, H]</code>，于是每个 rank 只需要做：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs text">local RMSNorm([T/N, H])<br></code></pre></td></tr></table></figure>
+<p>也就是说，像 <code>RMSNorm</code>、residual
+add、量化这类本来就不需要跨 token 交互的算子，不再需要在每个 rank
+上对完整 sequence 重复做一遍。</p>
+<p>第二层是降低本地内存带宽压力。</p>
+<p>这类算子很多时候不是 compute-bound，而是 memory-bound。把输入从
+<code>[T, H]</code> 变成 <code>[T/N, H]</code> 之后：</p>
+<ul>
+<li>读 hidden states 的流量变少</li>
+<li>写中间结果的流量变少</li>
+<li>访问 residual / quant scale 等辅助张量的流量也会一起下降</li>
+</ul>
+<p>所以就算不考虑后续 fusion，仅仅把这些小算子下沉到 token shard
+上本地执行，也经常能带来可观收益。</p>
+<p>第三层也是最重要的一层：给后续 compute + communication
+融合创造条件。</p>
+<p>单独看 <code>AllReduce</code> 和
+<code>ReduceScatter + AllGather</code>，通信量本身并不会凭空消失。真正大的收益通常来自图结构改变之后，后续
+pass 可以继续把：</p>
+<ul>
+<li><code>GEMM + ReduceScatter</code></li>
+<li><code>AllGather + GEMM</code></li>
+</ul>
+<p>识别出来，并替换成更底层的 fused collective
+kernel。这样才能进一步做到：</p>
+<ul>
+<li>让通信更早开始</li>
+<li>让通信和计算 overlap</li>
+<li>减少中间张量落地</li>
+</ul>
+<p>所以更准确地说，<code>SequenceParallelismPass</code>
+的性能收益来源是：</p>
+<ol type="1">
+<li>少做重复的逐 token 小算子</li>
+<li>降低这些小算子的内存访问量</li>
+<li>为后续 <code>AsyncTPPass</code> 提供更适合融合的图结构</li>
+</ol>
+<p>因此它本身既有直接收益，也有“铺路型”的间接收益。</p>
+<p>这个 pass 还不是无脑开启的，它会看：</p>
+<ul>
+<li>当前平台是不是 CUDA</li>
+<li>hidden size 是否大到值得做 sequence parallelism</li>
+<li>compile range 是否满足阈值</li>
+<li>在 piecewise compilation 场景下，当前 size 是否是单点并且能被 TP
+size 整除</li>
+</ul>
+<h3 id="asynctppass">6. <code>AsyncTPPass</code></h3>
+<p>这个 pass 可以看成是 <code>SequenceParallelismPass</code> 的后续配套
+pass。</p>
+<p>它会继续把：</p>
+<ul>
+<li><code>GEMM + ReduceScatter</code></li>
+<li><code>AllGather + GEMM</code></li>
+<li><code>scaled_mm + ReduceScatter</code></li>
+</ul>
+<p>等模式替换成更底层的 fused collective / symmetric memory
+算子，比如：</p>
+<ul>
+<li><code>torch.ops.symm_mem.fused_matmul_reduce_scatter</code></li>
+<li><code>torch.ops.symm_mem.fused_all_gather_matmul</code></li>
+</ul>
+<p>所以从 pass 依赖关系上看，可以粗略理解成：</p>
+<ol type="1">
+<li><code>SequenceParallelismPass</code> 先把图改造成适合 overlap
+compute / comm 的样子</li>
+<li><code>AsyncTPPass</code> 再把这些新结构 fuse 成更高效的 kernel</li>
+</ol>
+<h3 id="allreducefusionpass">7. <code>AllReduceFusionPass</code></h3>
+<p>这个 pass 走的是另一条路线：不改成
+<code>ReduceScatter/AllGather</code>，而是直接把</p>
+<ul>
+<li><code>AllReduce + RMSNorm</code></li>
+<li><code>AllReduce + FusedAddRMSNorm</code></li>
+<li><code>AllReduce + RMSNorm + Quant</code></li>
+</ul>
+<p>等模式替换成 FlashInfer 提供的 fused kernel。</p>
+<h3 id="qknormropefusionpass">8. <code>QKNormRoPEFusionPass</code></h3>
+<p>这个 pass 把 Q/K 上的 RMSNorm 和 RoPE 合并成一个 fused custom
+op：<code>fused_qk_norm_rope</code>。</p>
+<p>它要求的信息比普通 pattern 多一些，比如：</p>
+<ul>
+<li><code>head_dim</code></li>
+<li><code>num_heads</code></li>
+<li><code>num_kv_heads</code></li>
+<li><code>epsilon</code></li>
+<li><code>is_neox</code></li>
+</ul>
+<p>所以实现上也是先从实际的 <code>Attention</code> 层对象里把这些
+metadata 拿出来，再注册 pattern。</p>
+<p>另外它前面常常会配合一个 utility pass：</p>
+<ul>
+<li><code>SplitCoalescingPass</code></li>
+</ul>
+<p>这个 pass 会把重复的 <code>split_with_sizes</code>
+节点合并掉。因为如果 Q/K/V 是从同一个张量 split
+出来的，但图里重复生成了多个 <code>split_with_sizes</code>，后面的
+fusion pattern 往往就看不出“它们其实来自同一个 qkv”。</p>
+<h3 id="ropekvcachefusionpass">9.
+<code>RopeKVCacheFusionPass</code></h3>
+<p>这个 pass 主要针对的是：</p>
+<ul>
+<li>rotary embedding</li>
+<li>KV cache update</li>
+</ul>
+<p>把这两个步骤合成一个 fused kernel，减少中间 tensor 和 kernel
+launch。</p>
+<p>它的实现还会依赖另外两个 utility passes 先把图整理干净：</p>
+<ul>
+<li><code>SplitCoalescingPass</code></li>
+<li><code>ScatterSplitReplacementPass</code></li>
+</ul>
+<p><code>ScatterSplitReplacementPass</code>
+的作用特别适合举例说明。functionalization 之后，rotary embedding
+经常会变成：</p>
+<ol type="1">
+<li>先从 <code>qkv</code> 里 split 出 <code>q</code> 和
+<code>k</code></li>
+<li>跑 functionalized 的 rotary op</li>
+<li>再通过 <code>slice_scatter</code> 写回 <code>qkv</code></li>
+<li>然后又 split 一次拿出 <code>q/k/v</code></li>
+</ol>
+<p>如果后面没有别的用户真的需要“写回后的整个 qkv”，那这套
+<code>slice_scatter + split</code>
+就纯属绕远路。<code>ScatterSplitReplacementPass</code>
+会把这段图改回更直接的形式，这样 <code>RopeKVCacheFusionPass</code>
+才更容易匹配出融合模式。</p>
+<p>另外这个 pass 还会根据 <code>compile_range</code>
+控制是否启用，默认只在较小 token
+数下生效，因为源码注释里明确写了：它更偏向 small-batch decode，prefill
+大 batch 下未必占优。</p>
+<h3 id="postcleanuppass-和-fixfunctionalizationpass">10.
+<code>PostCleanupPass</code> 和
+<code>FixFunctionalizationPass</code></h3>
+<p><code>PostCleanupPass</code> 做的事情很朴素：</p>
+<ul>
+<li>stable topological sort</li>
+<li>dead code elimination</li>
+</ul>
+<p>原因是 pattern matcher
+改图之后，不保证图还是拓扑有序的，也可能留下无用节点。</p>
+<p><code>FixFunctionalizationPass</code> 则更关键。因为 vLLM 里很多
+custom op 在 tracing / matching 时会先以
+<code>auto_functionalized(...)</code>
+的形式出现，但真正执行时如果一直保留 functionalized 版本，往往会引入额外
+copy。这个 pass 会把一些重要算子重新 defunctionalize 回去，例如：</p>
+<ul>
+<li>rotary embedding</li>
+<li><code>fused_add_rms_norm</code></li>
+<li><code>rms_norm_dynamic_per_token_quant</code></li>
+<li><code>silu_and_mul</code></li>
+<li><code>fused_qk_norm_rope</code></li>
+<li><code>fused_rope_and_unified_kv_cache_update</code></li>
+</ul>
+<p>源码里甚至专门强调了一句：<code>FixFunctionalizationPass</code>
+必须最后执行，而且执行完之后<strong>不要</strong>再跑 DCE，因为
+defunctionalized 图里可能会出现“看起来像 dead
+code、但实际上不能随便删”的节点。</p>
+<h2 id="小结">小结</h2>
+<p>vLLM 不是简单地“调用了一次 <code>torch.compile</code>”，而是在 Dynamo
+只 trace 一次的前提下，围绕 cache、piecewise compile、compile
+ranges、cudagraph 和一组 post-grad custom
+passes，搭了一个自己的编译执行框架。</p>
+<p>最后放一个<a
+target="_blank" rel="noopener" href="https://docs.google.com/presentation/d/1vE5rsvgWgDSCYtiv_6KqH08vAUOCumXy18OcM8ouPE0">vLLM-compile
+slides</a></p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+</div>
+
+
+              
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/p/2971588407/" title="rope">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">rope</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/p/3714971887/" title="简易版 pdb watchpoint">
+                        <span class="hidden-mobile">简易版 pdb watchpoint</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+    <div class="statistics">
+  
+  
+
+  
+    
+      <span id="leancloud-site-pv-container" style="display: none">
+        总访问量 
+        <span id="leancloud-site-pv"></span>
+         次
+      </span>
+    
+    
+      <span id="leancloud-site-uv-container" style="display: none">
+        总访客数 
+        <span id="leancloud-site-uv"></span>
+         人
+      </span>
+    
+    
+
+  
+
+</div>
+
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    function isExpandAllEnabled() {
+      return CONFIG.toc && CONFIG.toc.expand_all === true;
+    }
+    function expandAllToc() {
+      if (!isExpandAllEnabled()) { return; }
+      jQuery('#toc-body .tocbot-is-collapsed').removeClass('tocbot-is-collapsed');
+    }
+    function updateTocToggle($li, $childList) {
+      var $toggle = $li.children('.toc-toggle');
+      if ($toggle.length === 0) { return; }
+      var collapsed = $childList.hasClass('tocbot-is-collapsed');
+      $toggle
+        .toggleClass('toc-toggle-collapsed', collapsed)
+        .toggleClass('toc-toggle-expanded', !collapsed);
+    }
+    function bindTocToggle() {
+      if (!isExpandAllEnabled()) { return; }
+      jQuery('#toc-body .toc-list-item').each(function() {
+        var $li = jQuery(this);
+        var $childList = $li.children('ol');
+        if ($childList.length === 0) {
+          if ($li.children('.toc-toggle').length === 0) {
+            $li.prepend('<span class="toc-toggle toc-toggle-placeholder" aria-hidden="true">›</span>');
+          }
+          return;
+        }
+
+        if ($li.children('.toc-toggle').length === 0) {
+          $li.prepend('<span class="toc-toggle toc-toggle-expanded" aria-hidden="true">›</span>');
+        }
+        updateTocToggle($li, $childList);
+      });
+      jQuery('#toc-body').off('click.tocToggle').on('click.tocToggle', '.toc-toggle', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var $li = jQuery(this).parent('.toc-list-item');
+        var $childList = $li.children('ol');
+        if ($childList.length === 0) { return; }
+        $childList.toggleClass('tocbot-is-collapsed');
+        updateTocToggle($li, $childList);
+      });
+      if (!window.__tocToggleObserver) {
+        window.__tocToggleObserver = new MutationObserver(function(mutations) {
+          mutations.forEach(function(mutation) {
+            if (mutation.type !== 'attributes' || mutation.attributeName !== 'class') { return; }
+            var $list = jQuery(mutation.target);
+            var $li = $list.parent('.toc-list-item');
+            if ($li.length === 0) { return; }
+            updateTocToggle($li, $list);
+          });
+        });
+        jQuery('#toc-body ol').each(function() {
+          window.__tocToggleObserver.observe(this, { attributes: true });
+        });
+      }
+    }
+    var tocConfig = Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc);
+    if (isExpandAllEnabled()) {
+      tocConfig.collapseDepth = 6;
+    }
+    window.tocbot.init(tocConfig);
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+    expandAllToc();
+    bindTocToggle();
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+        expandAllToc();
+        bindTocToggle();
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.10/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script defer src="/js/leancloud.js" ></script>
+
+  <script defer src="/js/openkounter.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>

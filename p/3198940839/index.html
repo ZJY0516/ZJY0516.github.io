@@ -1,0 +1,908 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=light>
+
+
+
+<head>
+  <meta charset="UTF-8">
+
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/zjy.jpg">
+  <link rel="icon" href="https://s3.bmp.ovh/imgs/2022/07/12/3c5aec6ab5c15352.jpg">
+  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Jiangyun Zhu">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="最近笔者在 vLLM 引入了 breakable cudagraph: vllm-project&#x2F;vllm#42304，核心入口是eager_break_during_capture这个装饰器。它的思路和现有的 piecewise cudagraph 完全不同，笔者觉得挺有意思的，所以写一篇介绍一下它是怎么实现的。 背景：为什么 cudagraph 需要被“打断” CUDA Graph 的好处是把">
+<meta property="og:type" content="article">
+<meta property="og:title" content="vLLM Breakable CUDA Graph">
+<meta property="og:url" content="http://riverclouds.net/p/3198940839/index.html">
+<meta property="og:site_name" content="riverclouds">
+<meta property="og:description" content="最近笔者在 vLLM 引入了 breakable cudagraph: vllm-project&#x2F;vllm#42304，核心入口是eager_break_during_capture这个装饰器。它的思路和现有的 piecewise cudagraph 完全不同，笔者觉得挺有意思的，所以写一篇介绍一下它是怎么实现的。 背景：为什么 cudagraph 需要被“打断” CUDA Graph 的好处是把">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-07T09:57:32.000Z">
+<meta property="article:modified_time" content="2026-06-07T11:33:00.000Z">
+<meta property="article:author" content="Jiangyun Zhu">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+  
+  <title>vLLM Breakable CUDA Graph - riverclouds</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1749284_5i9bdhy70f8.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+  
+<link rel="stylesheet" href="/css/trakt/iconfont.css">
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"riverclouds.net","root":"/","version":"1.9.9","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":false},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"expand_all":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"tencent":{"sid":null,"cid":null},"leancloud":{"app_id":"mWFBKEzCCHdRIBnFXmqtMjOw-gzGzoHsz","app_key":"rRz69xIsKIR8svfesk7TGbvW","server_url":"https://mwfbkezc.lc-cn-n1-shared.com","path":"window.location.pathname","ignore_local":true},"openkounter":{"server_url":"https://open-kounter.mintimate.cn","path":"window.location.pathname","ignore_local":false},"umami":{"src":null,"website_id":null,"domains":null,"start_time":"2024-01-01T00:00:00.000Z","token":null,"api_server":null},"gtag":null,"woyaola":null,"cnzz":null},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+  
+    
+  
+
+
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"><link rel="alternate" href="/atom.xml" title="riverclouds" type="application/atom+xml">
+</head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>riverclouds</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content (desktop) -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/links/" target="_self">
+                <i class="iconfont icon-link-fill"></i>
+                <span>友链</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile grid menu overlay -->
+<div id="mobile-grid-menu" class="d-lg-none">
+  <div class="mobile-grid-menu-inner">
+    <div class="container">
+      <div class="row">
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-home-fill"></i>
+                  <span>首页</span>
+                </div>
+              </a>
+            </div>
+          
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/archives/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-archive-fill"></i>
+                  <span>归档</span>
+                </div>
+              </a>
+            </div>
+          
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/about/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-user-fill"></i>
+                  <span>关于</span>
+                </div>
+              </a>
+            </div>
+          
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/links/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-link-fill"></i>
+                  <span>友链</span>
+                </div>
+              </a>
+            </div>
+          
+        
+        
+          <div class="col-4 mobile-grid-cell" id="mobile-search-btn">
+            <a href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <div class="mobile-grid-item">
+                <i class="iconfont icon-search"></i>
+                <span>搜索</span>
+              </div>
+            </a>
+          </div>
+        
+        
+          <div class="col-4 mobile-grid-cell" id="mobile-color-toggle-btn"
+               data-label-light="开灯"
+               data-label-dark="关灯">
+            <a href="javascript:;" aria-label="Color Toggle">
+              <div class="mobile-grid-item">
+                <i class="iconfont icon-dark" id="mobile-color-toggle-icon"></i>
+                <span id="mobile-color-toggle-label">关灯</span>
+              </div>
+            </a>
+          </div>
+        
+      </div>
+    </div>
+  </div>
+</div>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="vLLM Breakable CUDA Graph"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2026-06-07 17:57" pubdate>
+          2026年6月7日
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          4.8k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          41 分钟
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">vLLM Breakable CUDA Graph</h1>
+            
+              <p id="updated-time" class="note note-info" style="">
+                
+                  
+                    本文最后更新于 2026年6月7日
+                  
+                
+              </p>
+            
+            
+              <div class="markdown-body">
+                
+                <p>最近笔者在 vLLM 引入了 breakable cudagraph: <a
+target="_blank" rel="noopener" href="https://github.com/vllm-project/vllm/pull/42304">vllm-project/vllm#42304</a>，核心入口是<code>eager_break_during_capture</code>这个装饰器。它的思路和现有的
+piecewise cudagraph
+完全不同，笔者觉得挺有意思的，所以写一篇介绍一下它是怎么实现的。</p>
+<h2 id="背景为什么-cudagraph-需要被打断">背景：为什么 cudagraph
+需要被“打断”</h2>
+<p>CUDA Graph 的好处是把一连串 kernel launch 录制下来，之后 replay
+时几乎没有 host 端开销， 对 decode 这种 launch-bound
+的场景收益很大。</p>
+<p>但是 LLM 里有一类算子不适合被 capture 进
+graph：<strong>attention</strong>。</p>
+<p>所以我们希望：<strong>把 attention 排除在 cudagraph 之外，让它 eager
+执行，其余部分照常 capture。</strong></p>
+<p>vLLM 原本的做法是 piecewise cudagraph：依赖
+<code>torch.compile</code>，在 FX graph 层面按
+<code>splitting_ops</code>（也就是 attention 这些算子）
+把整个模型切成很多段，每段单独编译、单独 capture cudagraph，attention
+节点夹在段与段之间 eager 跑。</p>
+<p>breakable cudagraph 是另一条路（灵感来自 <a
+target="_blank" rel="noopener" href="https://github.com/sgl-project/sglang/pull/19102">sgl-project/sglang#19102</a>）：</p>
+<blockquote>
+<p>不在编译期切图，而是用<strong>一个</strong> capture context 驱动整个
+forward，在 dispatcher 层拦截 attention 临时结束当前的 stream
+capture，把这个 op eager 执行掉，再开一段新的 capture 接着录。</p>
+</blockquote>
+<p>一句话总结对比：</p>
+<ul>
+<li><strong>piecewise</strong>：编译期静态切图，靠
+<code>torch.compile</code> 的 FX split</li>
+<li><strong>breakable</strong>：运行期动态打断，靠 CUDA stream capture
+的 begin/end</li>
+</ul>
+<p>后者最大的好处是完全不依赖 <code>torch.compile</code>。</p>
+<h2 id="整体结构">整体结构</h2>
+<p>整个机制可以拆成三块：</p>
+<ol type="1">
+<li><code>eager_break_during_capture</code>：装饰在 attention 这类
+custom op 上的“断点”装饰器</li>
+<li><code>BreakableCUDAGraphCapture</code>：真正干活的 capture
+context，负责分段 capture + 记录 eager 段 + replay</li>
+<li><code>BreakableCUDAGraphWrapper</code>：套在整个 model 外面的
+wrapper，对标原来的 <code>CUDAGraphWrapper</code>，负责按 batch
+形状缓存与调度</li>
+</ol>
+<h2 id="断点装饰器">断点装饰器</h2>
+<p><code>eager_break_during_capture</code>这个装饰器贴在那些“不能被录进
+graph”的 op 上。最典型的就是 attention：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-comment"># vllm/model_executor/layers/attention/mla_attention.py</span><br><span class="hljs-meta">@eager_break_during_capture</span><br><span class="hljs-meta">@maybe_transfer_kv_layer</span><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">unified_mla_attention_with_output</span>(<span class="hljs-params">q, kv_c_normed, k_pe, output, layer_name, ...</span>):<br>    ...<br></code></pre></td></tr></table></figure>
+<p><code>eager_break_during_capture</code>返回一个 wrapper。wrapper
+在运行时判断当前要不要打断：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-meta">@functools.wraps(<span class="hljs-params">fn</span>)</span><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">wrapper</span>(<span class="hljs-params">*args, **kwargs</span>):<br>    capture = BreakableCUDAGraphCapture.current()<br>    <span class="hljs-keyword">if</span> capture <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:<br>        <span class="hljs-keyword">return</span> fn(*args, **kwargs)          <span class="hljs-comment"># 没有活跃 capture，正常 eager 执行</span><br>    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> capture._capturing:<br>        <span class="hljs-keyword">return</span> fn(*args, **kwargs)<br>    <span class="hljs-keyword">if</span> is_forward_context_available():<br>        mode = get_forward_context().cudagraph_runtime_mode<br>        <span class="hljs-keyword">if</span> mode == CUDAGraphMode.FULL:<br>            <span class="hljs-keyword">return</span> fn(*args, **kwargs)       <span class="hljs-comment"># FULL graph 模式不需要打断</span><br><br>    <span class="hljs-comment"># 真正在 capture 中：弱引用参数，交给 capture 处理</span><br>    weak_args = <span class="hljs-built_in">tuple</span>(<br>        weak_ref_tensor(a) <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(a, torch.Tensor) <span class="hljs-keyword">else</span> a <span class="hljs-keyword">for</span> a <span class="hljs-keyword">in</span> args<br>    )<br>    weak_kwargs = &#123;<br>        k: weak_ref_tensor(v) <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(v, torch.Tensor) <span class="hljs-keyword">else</span> v<br>        <span class="hljs-keyword">for</span> k, v <span class="hljs-keyword">in</span> kwargs.items()<br>    &#125;<br>    <span class="hljs-keyword">return</span> capture.add_eager(<span class="hljs-keyword">lambda</span>: fn(*weak_args, **weak_kwargs))<br></code></pre></td></tr></table></figure>
+<p>几个值得注意的点：</p>
+<p><strong>为什么要 weak-ref 参数？</strong> 因为 replay 用的 lambda
+会一直持有这些参数。如果是强引用， 就会把 cudagraph memory pool 里对应的
+slot 永久 pin 住，导致不同 batch descriptor 之间没法复用内存。 而
+cudagraph pool 本身已经拥有这块内存，replay 时这些 tensor
+地址是稳定的，所以用 weak ref 去 deref 是安全的。</p>
+<p><strong>FULL 模式直接放行。</strong> 如果 forward context 说当前是
+<code>CUDAGraphMode.FULL</code>（整个 forward 录一张大图），
+那就不应该打断——breakable 解决的是 PIECEWISE 场景。</p>
+<h2
+id="breakablecudagraphcapture分段-capture-的核心"><code>BreakableCUDAGraphCapture</code>：分段
+capture 的核心</h2>
+<p>这是真正干活的类。它是 thread-local 的，一个线程同时只能有一个活跃
+capture。</p>
+<p>它维护一个关键的数据结构：<code>self.segments</code>，一个
+<strong>zero-arg callable 列表</strong>。 列表里每个元素要么是某段
+cudagraph 的 <code>replay</code> 方法，要么是一个 eager 段的函数。replay
+时按顺序挨个调用就行。</p>
+<h3 id="最后的效果">最后的效果</h3>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs python">capture = BreakableCUDAGraphCapture(pool=<span class="hljs-variable language_">self</span>.graph_pool)<br>    <span class="hljs-keyword">with</span> capture:<br>        output = <span class="hljs-variable language_">self</span>.runnable(*args, **kwargs)<br>        output = weak_ref_tensors(output)<br></code></pre></td></tr></table></figure>
+<p>我们希望最后设计出来的API还是和<code>torch</code>提供的<code>with torch.cuda.graph(g):</code>类似，下面讲讲如何做到。</p>
+<h3 id="分段">分段</h3>
+<p><code>__enter__</code> 时开第一段，<code>__exit__</code>
+时结束最后一段：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">_begin_segment</span>(<span class="hljs-params">self</span>):<br>    g = torch.cuda.CUDAGraph()<br>    <span class="hljs-keyword">if</span> <span class="hljs-variable language_">self</span>.pool <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:<br>        g.capture_begin(pool=<span class="hljs-variable language_">self</span>.pool)<br>    <span class="hljs-keyword">else</span>:<br>        g.capture_begin()<br>    <span class="hljs-variable language_">self</span>._current_graph = g<br>    <span class="hljs-variable language_">self</span>._capturing = <span class="hljs-literal">True</span><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">_end_segment</span>(<span class="hljs-params">self</span>):<br>    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> <span class="hljs-variable language_">self</span>._capturing:<br>        <span class="hljs-keyword">return</span><br>    <span class="hljs-variable language_">self</span>._current_graph.capture_end()<br>    <span class="hljs-variable language_">self</span>.segments.append(<span class="hljs-variable language_">self</span>._current_graph.replay)   <span class="hljs-comment"># 把这段的 replay 记下来</span><br>    <span class="hljs-variable language_">self</span>._current_graph = <span class="hljs-literal">None</span><br>    <span class="hljs-variable language_">self</span>._capturing = <span class="hljs-literal">False</span><br></code></pre></td></tr></table></figure>
+<p>注意这里是直接调 <code>CUDAGraph.capture_begin()</code> /
+<code>capture_end()</code>， 而不是用 <code>torch.cuda.graph()</code>
+这个上下文管理器。</p>
+<h3 id="eager-打断">eager 打断</h3>
+<p>核心就是
+<code>add_eager</code>，<code>eager_break_during_capture</code>
+最后调的就是它：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">add_eager</span>(<span class="hljs-params">self, fn</span>):<br>    <span class="hljs-variable language_">self</span>._end_segment()          <span class="hljs-comment"># 1. 结束当前 graph 段</span><br>    result = fn()                <span class="hljs-comment"># 2. 在 capture stream 上 eager 执行</span><br>    <span class="hljs-variable language_">self</span>.segments.append(fn)     <span class="hljs-comment"># 3. 把 fn 本身记进 segments，留给 replay</span><br>    <span class="hljs-variable language_">self</span>._begin_segment()        <span class="hljs-comment"># 4. 开新的一段接着录</span><br>    <span class="hljs-keyword">return</span> result<br></code></pre></td></tr></table></figure>
+<p><strong>第 1 步 <code>self._end_segment()</code></strong></p>
+<p>先结束 capture，把 graph 记录下来</p>
+<p><strong>第 2 步 <code>result = fn()</code></strong></p>
+<p>capture 结束后，<code>fn()</code>（也就是被弱引用包好的 attention
+调用:
+<code>fn = lambda: attention(*weak_args, **weak_kwargs)</code>）就以普通
+eager 模式跑一遍。</p>
+<p><strong>第 3 步 <code>self.segments.append(fn)</code></strong></p>
+<ul>
+<li>graph 段 append 的是 <code>cudagraph.replay</code>——replay
+时重放录好的 kernel，输入输出都在固定地址</li>
+<li>eager 段 append 的是 <code>fn</code> 本身——replay
+时<strong>重新跑一遍这个 Python 函数</strong></li>
+</ul>
+<p><strong>第 4 步
+<code>self._begin_segment()</code>：开新的一段接着录。</strong></p>
+<p>attention 跑完了，后面还有 MLP / norm 等可以继续录进 graph
+的算子，所以马上重新 <code>capture_begin()</code>， 开一段新的
+graph，等下一个 attention 再来打断。如此往复，整个 forward 就被切成
+<code>[graph段, eager段, graph段, eager段, ...]</code>
+这样交替的序列。</p>
+<p>配一张时序图大概是这样：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><code class="hljs text">capture 开始<br>  │<br>  ├─ [graph segment 0]  ← MLP / norm / ... 全部录进 graph 0<br>  │<br>  ├─ attention 调用 → add_eager<br>  │     end graph 0  →  eager 跑 attention  →  begin graph 1<br>  │<br>  ├─ [graph segment 1]  ← 下一层的 MLP / norm ...<br>  │<br>  ├─ attention 调用 → add_eager<br>  │     end graph 1  →  eager 跑 attention  →  begin graph 2<br>  │<br>  ├─ [graph segment 2]<br>  │<br>capture 结束（end 最后一段）<br><br>segments = [g0.replay, attn0, g1.replay, attn1, g2.replay]<br></code></pre></td></tr></table></figure>
+<p>可以看到 <code>segments</code> 最终是 graph 段和 eager
+段交替排列的列表，replay 时按这个顺序挨个跑就还原了整个 forward。</p>
+<h3 id="replay">replay</h3>
+<p>replay 简单到不能再简单：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">replay</span>(<span class="hljs-params">self</span>):<br>    <span class="hljs-keyword">for</span> r <span class="hljs-keyword">in</span> <span class="hljs-variable language_">self</span>.segments:<br>        r()<br></code></pre></td></tr></table></figure>
+<p>graph 段就是 <code>cudagraph.replay()</code>，eager
+段就是重新跑一遍那个 <code>fn</code>。注意 replay 不返回值——
+所有的数据流都通过 static output buffer 传递，调用方拿的是固定地址的
+output tensor。</p>
+<h2 id="总结">总结</h2>
+<p>breakable cudagraph 把“在 attention 边界处打断
+cudagraph”这件事，从<strong>编译期的 FX
+切图</strong>搬到了<strong>运行期的 stream capture 打断</strong>：</p>
+<ul>
+<li><code>eager_break_during_capture</code> 贴在 attention 这类 op
+上当断点，capture 中遇到就 <code>add_eager</code></li>
+<li><code>BreakableCUDAGraphCapture</code> 把整个 forward 录成
+<code>[graph段, eager段, graph段, ...]</code> 的 callable 列表，replay
+时顺序跑</li>
+<li><code>BreakableCUDAGraphWrapper</code> 按 batch 形状缓存
+capture，对标原来的 <code>CUDAGraphWrapper</code></li>
+</ul>
+<p>好处则是彻底摆脱了 <code>torch.compile</code>，对于 DeepSeek V4
+这类模型不用再走那条又长又重的编译管线。</p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+</div>
+
+
+              
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/p/808149112/" title="CUDA Programmatic Dependent Launch (PDL)">
+                        <span class="hidden-mobile">CUDA Programmatic Dependent Launch (PDL)</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+    <div class="statistics">
+  
+  
+
+  
+    
+      <span id="leancloud-site-pv-container" style="display: none">
+        总访问量 
+        <span id="leancloud-site-pv"></span>
+         次
+      </span>
+    
+    
+      <span id="leancloud-site-uv-container" style="display: none">
+        总访客数 
+        <span id="leancloud-site-uv"></span>
+         人
+      </span>
+    
+    
+
+  
+
+</div>
+
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    function isExpandAllEnabled() {
+      return CONFIG.toc && CONFIG.toc.expand_all === true;
+    }
+    function expandAllToc() {
+      if (!isExpandAllEnabled()) { return; }
+      jQuery('#toc-body .tocbot-is-collapsed').removeClass('tocbot-is-collapsed');
+    }
+    function updateTocToggle($li, $childList) {
+      var $toggle = $li.children('.toc-toggle');
+      if ($toggle.length === 0) { return; }
+      var collapsed = $childList.hasClass('tocbot-is-collapsed');
+      $toggle
+        .toggleClass('toc-toggle-collapsed', collapsed)
+        .toggleClass('toc-toggle-expanded', !collapsed);
+    }
+    function bindTocToggle() {
+      if (!isExpandAllEnabled()) { return; }
+      jQuery('#toc-body .toc-list-item').each(function() {
+        var $li = jQuery(this);
+        var $childList = $li.children('ol');
+        if ($childList.length === 0) {
+          if ($li.children('.toc-toggle').length === 0) {
+            $li.prepend('<span class="toc-toggle toc-toggle-placeholder" aria-hidden="true">›</span>');
+          }
+          return;
+        }
+
+        if ($li.children('.toc-toggle').length === 0) {
+          $li.prepend('<span class="toc-toggle toc-toggle-expanded" aria-hidden="true">›</span>');
+        }
+        updateTocToggle($li, $childList);
+      });
+      jQuery('#toc-body').off('click.tocToggle').on('click.tocToggle', '.toc-toggle', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var $li = jQuery(this).parent('.toc-list-item');
+        var $childList = $li.children('ol');
+        if ($childList.length === 0) { return; }
+        $childList.toggleClass('tocbot-is-collapsed');
+        updateTocToggle($li, $childList);
+      });
+      if (!window.__tocToggleObserver) {
+        window.__tocToggleObserver = new MutationObserver(function(mutations) {
+          mutations.forEach(function(mutation) {
+            if (mutation.type !== 'attributes' || mutation.attributeName !== 'class') { return; }
+            var $list = jQuery(mutation.target);
+            var $li = $list.parent('.toc-list-item');
+            if ($li.length === 0) { return; }
+            updateTocToggle($li, $list);
+          });
+        });
+        jQuery('#toc-body ol').each(function() {
+          window.__tocToggleObserver.observe(this, { attributes: true });
+        });
+      }
+    }
+    var tocConfig = Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc);
+    if (isExpandAllEnabled()) {
+      tocConfig.collapseDepth = 6;
+    }
+    window.tocbot.init(tocConfig);
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+    expandAllToc();
+    bindTocToggle();
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+        expandAllToc();
+        bindTocToggle();
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.10/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script defer src="/js/leancloud.js" ></script>
+
+  <script defer src="/js/openkounter.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>
