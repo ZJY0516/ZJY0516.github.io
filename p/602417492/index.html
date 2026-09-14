@@ -1,0 +1,1411 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=light>
+
+
+
+<head>
+  <meta charset="UTF-8">
+
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/zjy.jpg">
+  <link rel="icon" href="https://s3.bmp.ovh/imgs/2022/07/12/3c5aec6ab5c15352.jpg">
+  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Jiangyun Zhu">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="关于 CUDA Graph，一个常见的第一印象是“不可变”：输入形状不可变、内存地址不可变、控制流不可变。但如果只记住这些限制，就很容易产生一些看似合理的推论。例如，LLM 的 decode 阶段上下文长度不断增长，因此无法使用 CUDA Graph。 实际情况恰好相反，decode 是推理框架使用 CUDA Graph 的典型场景。 本文先从一次 kernel launch 的提交过程出发，解释">
+<meta property="og:type" content="article">
+<meta property="og:title" content="CUDA Graph 的执行机制与动态性">
+<meta property="og:url" content="http://riverclouds.net/p/602417492/index.html">
+<meta property="og:site_name" content="riverclouds">
+<meta property="og:description" content="关于 CUDA Graph，一个常见的第一印象是“不可变”：输入形状不可变、内存地址不可变、控制流不可变。但如果只记住这些限制，就很容易产生一些看似合理的推论。例如，LLM 的 decode 阶段上下文长度不断增长，因此无法使用 CUDA Graph。 实际情况恰好相反，decode 是推理框架使用 CUDA Graph 的典型场景。 本文先从一次 kernel launch 的提交过程出发，解释">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-09-13T13:55:51.000Z">
+<meta property="article:modified_time" content="2026-09-14T03:15:06.000Z">
+<meta property="article:author" content="Jiangyun Zhu">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+  
+  <title>CUDA Graph 的执行机制与动态性 - riverclouds</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1749284_5i9bdhy70f8.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+  
+<link rel="stylesheet" href="/css/trakt/iconfont.css">
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"riverclouds.net","root":"/","version":"1.9.9","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":false},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"expand_all":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"tencent":{"sid":null,"cid":null},"leancloud":{"app_id":"mWFBKEzCCHdRIBnFXmqtMjOw-gzGzoHsz","app_key":"rRz69xIsKIR8svfesk7TGbvW","server_url":"https://mwfbkezc.lc-cn-n1-shared.com","path":"window.location.pathname","ignore_local":true},"openkounter":{"server_url":"https://open-kounter.mintimate.cn","path":"window.location.pathname","ignore_local":false},"umami":{"src":null,"website_id":null,"domains":null,"start_time":"2024-01-01T00:00:00.000Z","token":null,"api_server":null},"gtag":null,"woyaola":null,"cnzz":null},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+  
+    
+  
+
+
+
+
+  
+<meta name="generator" content="Hexo 8.1.2"><link rel="alternate" href="/atom.xml" title="riverclouds" type="application/atom+xml">
+</head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>riverclouds</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content (desktop) -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/links/" target="_self">
+                <i class="iconfont icon-link-fill"></i>
+                <span>友链</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile grid menu overlay -->
+<div id="mobile-grid-menu" class="d-lg-none">
+  <div class="mobile-grid-menu-inner">
+    <div class="container">
+      <div class="row">
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-home-fill"></i>
+                  <span>首页</span>
+                </div>
+              </a>
+            </div>
+          
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/archives/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-archive-fill"></i>
+                  <span>归档</span>
+                </div>
+              </a>
+            </div>
+          
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/about/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-user-fill"></i>
+                  <span>关于</span>
+                </div>
+              </a>
+            </div>
+          
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/links/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-link-fill"></i>
+                  <span>友链</span>
+                </div>
+              </a>
+            </div>
+          
+        
+        
+          <div class="col-4 mobile-grid-cell" id="mobile-search-btn">
+            <a href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <div class="mobile-grid-item">
+                <i class="iconfont icon-search"></i>
+                <span>搜索</span>
+              </div>
+            </a>
+          </div>
+        
+        
+          <div class="col-4 mobile-grid-cell" id="mobile-color-toggle-btn"
+               data-label-light="开灯"
+               data-label-dark="关灯">
+            <a href="javascript:;" aria-label="Color Toggle">
+              <div class="mobile-grid-item">
+                <i class="iconfont icon-dark" id="mobile-color-toggle-icon"></i>
+                <span id="mobile-color-toggle-label">关灯</span>
+              </div>
+            </a>
+          </div>
+        
+      </div>
+    </div>
+  </div>
+</div>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="CUDA Graph 的执行机制与动态性"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2026-09-13 21:55" pubdate>
+          2026年9月13日
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          18k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          152 分钟
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">CUDA Graph 的执行机制与动态性</h1>
+            
+              <p id="updated-time" class="note note-info" style="">
+                
+                  
+                    本文最后更新于 2026年9月14日
+                  
+                
+              </p>
+            
+            
+              <div class="markdown-body">
+                
+                <p>关于 CUDA
+Graph，一个常见的第一印象是“不可变”：输入形状不可变、内存地址不可变、控制流不可变。但如果只记住这些限制，就很容易产生一些看似合理的推论。例如，LLM
+的 decode 阶段上下文长度不断增长，因此无法使用 CUDA Graph。</p>
+<p>实际情况恰好相反，decode 是推理框架使用 CUDA Graph 的典型场景。</p>
+<p>本文先从一次 kernel launch 的提交过程出发，解释 CUDA Graph
+保存了什么，再讨论其动态性，以及 PyTorch 如何管理 capture
+期间产生的临时显存。</p>
+<h2 id="一次-kernel-launch-提交了什么">一次 kernel launch
+提交了什么</h2>
+<p>CPU 启动 kernel 时，提交的是“执行这段 GPU
+程序所需的工作描述”。理解这个过程，需要区分三类内容：</p>
+<table>
+<thead>
+<tr class="header">
+<th>内容</th>
+<th>例子</th>
+<th>何时准备</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>kernel 代码</td>
+<td>load、store、矩阵乘等机器指令</td>
+<td>编译、加载时</td>
+</tr>
+<tr class="even">
+<td>一次执行的描述</td>
+<td>程序入口、grid、block、参数、资源配置</td>
+<td>launch 时</td>
+</tr>
+<tr class="odd">
+<td>运行时数据</td>
+<td>输入 tensor、权重、KV cache</td>
+<td>执行前准备，执行中读取</td>
+</tr>
+</tbody>
+</table>
+<p>例如：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs cpp">scale&lt;&lt;&lt;<span class="hljs-number">4</span>, <span class="hljs-number">256</span>, <span class="hljs-number">0</span>, stream&gt;&gt;&gt;(x_ptr, y_ptr, <span class="hljs-number">1024</span>, <span class="hljs-number">2.0f</span>);<br></code></pre></td></tr></table></figure>
+<p>这里需要指定运行哪个 kernel、启动多少线程，以及四个实参。对于
+<code>x_ptr</code>，传入的是地址值；它指向的整个 tensor 不会随这次
+launch 自动复制。kernel
+代码通常也可以在加载后重复使用，无须每次重新传输。参见 <a
+target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-programming-guide/03-advanced/driver-api.html">CUDA
+Driver API</a>。</p>
+<p>下面以 NVIDIA GPU 上普通的 host launch
+为例，分别讨论代码加载、参数准备和驱动提交。</p>
+<h3 id="代码加载与-kernel-启动">代码加载与 kernel 启动</h3>
+<p>首先需要区分 kernel 的代码与某一次执行它的请求。</p>
+<p>CUDA C++ 或 Triton 产生的 device 代码，最终需要转换为目标 GPU
+能执行的机器指令。在 NVIDIA 平台上，PTX 是虚拟指令集，cubin
+中包含面向具体架构的机器码，反汇编时通常称为 SASS。如果加载的是
+PTX，驱动可以在加载过程中将其 JIT 编译为机器码；如果已经有适合当前架构的
+cubin，则可以加载该二进制。</p>
+<p>Driver API 用 module 和 function handle 表达这些对象。例如：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-comment">// 假设 CUDA context 已初始化，scale.cubin 中包含名为 scale 的 kernel。</span><br>CUmodule <span class="hljs-keyword">module</span>;<br>CUfunction function;<br><span class="hljs-built_in">cuModuleLoad</span>(&amp;<span class="hljs-keyword">module</span>, <span class="hljs-string">&quot;scale.cubin&quot;</span>);<br><span class="hljs-built_in">cuModuleGetFunction</span>(&amp;function, <span class="hljs-keyword">module</span>, <span class="hljs-string">&quot;scale&quot;</span>);<br></code></pre></td></tr></table></figure>
+<p>这一步使驱动能够找到 kernel 的代码和相关 metadata。后续可以使用同一个
+function handle 多次 launch，并不需要每次重新编译和传输整份 kernel
+代码。lazy loading
+可能将部分准备工作推迟到首次使用，但不改变代码加载与重复执行的区别。参见
+<a
+target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-programming-guide/03-advanced/driver-api.html">CUDA
+Driver API 的 module 与 kernel execution</a>。</p>
+<h3 id="参数如何传给-gpu">参数如何传给 GPU</h3>
+<p>假设 <code>scale</code> 的签名是：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">extern</span> <span class="hljs-string">&quot;C&quot;</span> <span class="hljs-function">__global__ <span class="hljs-type">void</span> <span class="hljs-title">scale</span><span class="hljs-params">(<span class="hljs-type">const</span> <span class="hljs-type">float</span>* x, <span class="hljs-type">float</span>* y, <span class="hljs-type">int</span> n, <span class="hljs-type">float</span> alpha)</span></span>;<br></code></pre></td></tr></table></figure>
+<p>在 Driver API 层，一次启动可以写成：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-comment">// d_x、d_y 是 CUdeviceptr 类型的 host 变量，保存已分配的 device buffer 地址。</span><br><span class="hljs-comment">// stream 是有效的 CUstream。</span><br><span class="hljs-type">int</span> n = <span class="hljs-number">1024</span>;<br><span class="hljs-type">float</span> alpha = <span class="hljs-number">2.0f</span>;<br><span class="hljs-type">void</span>* args[] = &#123;&amp;d_x, &amp;d_y, &amp;n, &amp;alpha&#125;;<br><br><span class="hljs-built_in">cuLaunchKernel</span>(<br>    function,<br>    <span class="hljs-number">4</span>, <span class="hljs-number">1</span>, <span class="hljs-number">1</span>,       <span class="hljs-comment">// grid dimensions</span><br>    <span class="hljs-number">256</span>, <span class="hljs-number">1</span>, <span class="hljs-number">1</span>,     <span class="hljs-comment">// block dimensions</span><br>    <span class="hljs-number">0</span>, stream,     <span class="hljs-comment">// dynamic shared memory、stream</span><br>    args, <span class="hljs-literal">nullptr</span><br>);<br></code></pre></td></tr></table></figure>
+<p>这里的 <code>extern "C"</code> 保证导出的 kernel 符号名为
+<code>scale</code>，与前面的 <code>cuModuleGetFunction</code>
+调用一致。<code>cuLaunchKernel</code> 在 CPU 上执行。<code>args</code>
+中的 <code>&amp;d_x</code> 告诉驱动从哪个 host 地址读取实参；读取到的
+<code>d_x</code> 才是传给 kernel 的 device 地址值。参见 <a
+target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-driver-api/cuda_driver_api/group__CUDA__EXEC.html">cuLaunchKernel
+参数说明</a>。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">CPU 内存                           GPU<br><br>&amp;d_x ──→ d_x = 0xA000<br>                  │<br>                  └──复制参数值──→ x = 0xA000<br>                                         │<br>                                         └──读取──→ device buffer 中的数据<br></code></pre></td></tr></table></figure>
+<p>图中的地址仅作示意。<code>n</code> 和 <code>alpha</code> 同样由 host
+按值传入，因此 kernel 参数不必都是 device
+指针。需要区分的是：传递指针值与搬运指针指向的数组，是两件不同的事。</p>
+<h3 id="从提交到执行">从提交到执行</h3>
+<p>驱动将函数、参数和执行配置组织为 GPU 可以处理的工作描述，再通知 GPU
+执行。这里需要区分启动计算的命令与计算本身的指令：</p>
+<table>
+
+<thead>
+<tr class="header">
+<th>内容</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>kernel 机器指令</td>
+<td>描述线程执行哪些 load、store、算术和控制流操作</td>
+</tr>
+<tr class="even">
+<td>提交命令与工作描述符</td>
+<td>指定运行哪段代码、采用什么执行配置、使用哪些参数与依赖</td>
+</tr>
+</tbody>
+</table>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><code class="hljs text">CPU / host<br>    框架调用或 CUDA C++ launch<br>          ↓<br>    Runtime / Driver：准备参数与工作描述<br>          ↓<br>    提交工作，通知 GPU<br>          │<br>          ▼<br>GPU<br>    命令前端取得工作，处理相关依赖<br>          ↓<br>    将 thread blocks 分派给具备资源的 SM<br>          ↓<br>    SM 内的 warp scheduler 发射就绪指令<br>          ↓<br>    执行 kernel 的 load / store / compute<br></code></pre></td></tr></table></figure>
+<p>host 指定 grid 和 block，具体的 block 分派和 warp 调度由 GPU
+完成。因此，CPU 提交工作所需的时间，与 GPU 执行 kernel
+的时间需要分别考察。</p>
+<h2 id="cuda-graph-记录了什么">CUDA Graph 记录了什么</h2>
+<p>在普通的 eager 执行中，CPU 依次调用算子，经过框架的 dispatcher 和
+CUDA runtime，将 kernel 提交到 GPU。对于计算时间很短的小算子，host
+端的开销可能成为显著的性能瓶颈。</p>
+<p>CUDA Graph 将一组 GPU 工作及其依赖关系预先定义为图，实例化后通过一次
+graph launch 提交执行。stream capture
+是构建这张图的一种方式，另外也可以通过显式的 Graph API 添加节点。CUDA
+将这个过程划分为 definition、instantiation 和 execution
+三个阶段，PyTorch 通常将最后一个阶段称为 replay。参见 <a
+target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cuda-graphs.html#building-and-running-graphs">CUDA
+Graphs 文档</a>。</p>
+<p>对于一段简单的逐元素计算，可以将其理解为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs text">eager：<br>    CPU 提交 add → CPU 提交 relu → CPU 提交 mul<br><br>capture 后：<br>    graph = [add → relu → mul]<br><br>replay：<br>    CPU 提交 graph<br></code></pre></td></tr></table></figure>
+<p>这里的三个 kernel 仍然是三个 kernel。CUDA Graph
+本身不会将它们融合成一个
+kernel，也不会自动消除中间结果的显存读写。kernel fusion 与 CUDA Graph
+可以配合使用，但解决的是不同层面的问题。</p>
+<h3 id="api-层的图与执行时的表示">API 层的图与执行时的表示</h3>
+<p>kernel 节点的参数结构 <code>cudaKernelNodeParams</code> 包含
+<code>func</code>、<code>gridDim</code>、<code>blockDim</code>、<code>sharedMemBytes</code>，以及
+<code>kernelParams</code> / <code>extra</code>
+所描述的实参。节点间的依赖另外表达。参见 <a
+target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-runtime-api/structcudaKernelNodeParams.html"><code>cudaKernelNodeParams</code></a>。</p>
+<p>以两个 kernel 为例，图在语义上可以表示为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">node A：scale(x_ptr, tmp_ptr, 1024, 2.0)<br>        grid=(4,1,1), block=(256,1,1)<br><br>node B：relu(tmp_ptr, y_ptr, 1024)<br>        grid=(4,1,1), block=(256,1,1)<br><br>dependency：A → B<br></code></pre></td></tr></table></figure>
+<p><code>cudaGraph_t</code>
+是图定义的句柄，对应上述节点、参数和依赖。调用
+<code>cudaGraphInstantiate</code> 后，CUDA
+校验图并完成执行所需的准备，返回一个可执行图实例的句柄
+<code>cudaGraphExec_t</code>。后续 <code>cudaGraphLaunch</code>
+接收的是这个实例，可以反复启动它：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-comment">// graph 是已经建好的 cudaGraph_t，stream 是执行所用的 CUDA stream。</span><br>cudaGraphExec_t executable;<br><span class="hljs-built_in">cudaGraphInstantiate</span>(&amp;executable, graph, <span class="hljs-number">0</span>);<br><br><span class="hljs-built_in">cudaGraphLaunch</span>(executable, stream);<br><span class="hljs-built_in">cudaGraphLaunch</span>(executable, stream);  <span class="hljs-comment">// 复用同一个实例，再执行一次</span><br></code></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs text">capture / 显式建图<br>    ↓<br>cudaGraph_t：图定义（节点、参数、依赖）<br>    ↓ instantiate<br>cudaGraphExec_t：可执行图实例，供后续 launch 使用<br>    ↓ upload（可以合并到首次 launch）<br>device 端可用的工作描述<br>    ↓ launch / replay<br>按依赖执行各节点<br></code></pre></td></tr></table></figure>
+<h2 id="不可变的具体含义">“不可变”的具体含义</h2>
+<h3 id="指针值与指针指向的内容">指针值与指针指向的内容</h3>
+<p>考虑下面的 CUDA kernel：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">extern</span> <span class="hljs-string">&quot;C&quot;</span> <span class="hljs-function">__global__ <span class="hljs-type">void</span> <span class="hljs-title">scale</span><span class="hljs-params">(<span class="hljs-type">const</span> <span class="hljs-type">float</span>* x, <span class="hljs-type">float</span>* y, <span class="hljs-type">int</span> n, <span class="hljs-type">float</span> alpha)</span> </span>&#123;<br>    <span class="hljs-type">int</span> i = blockIdx.x * blockDim.x + threadIdx.x;<br>    <span class="hljs-keyword">if</span> (i &lt; n) &#123;<br>        y[i] = x[i] * alpha;<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>假设 capture 时的调用是：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs cpp">scale&lt;&lt;&lt;<span class="hljs-number">4</span>, <span class="hljs-number">256</span>, <span class="hljs-number">0</span>, stream&gt;&gt;&gt;(x_ptr, y_ptr, <span class="hljs-number">1024</span>, <span class="hljs-number">2.0f</span>);<br></code></pre></td></tr></table></figure>
+<p>那么 graph 记录的是这次 launch：使用哪个 kernel、grid 和 block
+的大小，以及
+<code>x_ptr</code>、<code>y_ptr</code>、<code>1024</code>、<code>2.0f</code>
+这些参数值。</p>
+<p>每次 replay 时，kernel 都会从同一个 <code>x_ptr</code>
+读取数据，向同一个 <code>y_ptr</code> 写入结果。但 <code>x_ptr</code>
+指向的 1024 个浮点数可以改变。graph
+保存了指针值，并没有保存这块显存内容的快照。</p>
+<p>因此，修改输入的正确方式是在 replay 之前更新原有 buffer。下面假设
+<code>new_x</code> 已准备完成，拷贝与 replay 在同一 stream 上提交：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs python">static_x.copy_(new_x)<br>g.replay()<br></code></pre></td></tr></table></figure>
+<p>而下面的赋值只改变 Python 变量的绑定关系：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs python">static_x = new_x<br>g.replay()<br></code></pre></td></tr></table></figure>
+<p>graph 不会重新查找 <code>static_x</code> 这个名字，也不会因此改用
+<code>new_x</code> 的地址。如果原来的输入 tensor
+失去引用，其内存还可能被 allocator 回收复用。因此，capture
+之外分配的输入、权重等 buffer，需要由调用方保证生命周期。</p>
+<h3 id="标量也可以变成运行时数据">标量也可以变成运行时数据</h3>
+<p>上面的 <code>alpha</code> 是一个按值传入的标量，capture 时已经固定为
+<code>2.0f</code>。即使随后修改 host 端的 <code>alpha</code> 变量，graph
+中的参数也不会随之变化。</p>
+<p>如果需要每次 replay 使用不同的缩放系数，可以改为：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-function">__global__ <span class="hljs-type">void</span> <span class="hljs-title">scale_dynamic</span><span class="hljs-params">(</span></span><br><span class="hljs-params"><span class="hljs-function">    <span class="hljs-type">const</span> <span class="hljs-type">float</span>* x, <span class="hljs-type">float</span>* y, <span class="hljs-type">int</span> n, <span class="hljs-type">const</span> <span class="hljs-type">float</span>* alpha_ptr</span></span><br><span class="hljs-params"><span class="hljs-function">)</span> </span>&#123;<br>    <span class="hljs-type">int</span> i = blockIdx.x * blockDim.x + threadIdx.x;<br>    <span class="hljs-keyword">if</span> (i &lt; n) &#123;<br>        y[i] = x[i] * alpha_ptr[<span class="hljs-number">0</span>];<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>此时固定的是 <code>alpha_ptr</code>，缩放系数则由 GPU
+在执行时从显存读取。只要在 replay 之前更新该地址的内容，并保证更新与
+replay 之间的执行顺序，系数就可以变化。</p>
+<p>同一个数值，作为 host 标量传入，或者作为 device buffer 的内容传入，对
+CUDA Graph 来说具有不同的含义。后面讨论的 sequence length、block table
+和条件判断，都与这个区别有关。</p>
+<h3 id="固定-shape-与可变的有效长度">固定 shape 与可变的有效长度</h3>
+<p>继续使用前面的 <code>scale</code>。假设输入 tensor 的 shape 是
+<code>[1024]</code>，host 根据元素数量计算 grid，再启动 kernel：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-type">int</span> n = <span class="hljs-number">1024</span>;                    <span class="hljs-comment">// 来自输入 tensor 的元素数量</span><br><span class="hljs-type">int</span> blocks = (n + <span class="hljs-number">255</span>) / <span class="hljs-number">256</span>;     <span class="hljs-comment">// 每个线程处理一个元素</span><br>scale&lt;&lt;&lt;blocks, <span class="hljs-number">256</span>, <span class="hljs-number">0</span>, stream&gt;&gt;&gt;(x_ptr, y_ptr, n, <span class="hljs-number">2.0f</span>);<br></code></pre></td></tr></table></figure>
+<p>capture 得到的是 <code>grid=4</code>、<code>n=1024</code> 的这次
+launch。之后 replay 不会重新执行上面计算 <code>n</code> 和
+<code>blocks</code> 的 host 代码。</p>
+<p>如果输入改为 <code>[2048]</code>，普通执行会重新计算，得到
+<code>grid=8</code>、<code>n=2048</code>。但原 graph 仍然启动 4 个
+block，并向 kernel 传入 <code>1024</code>：它只处理前 1024
+个元素。即使原来的输入输出 buffer
+足够大，这张图也不会自动扩大计算范围。</p>
+<table>
+<thead>
+<tr class="header">
+<th>输入 shape</th>
+<th>普通执行时计算出的 launch</th>
+<th>原 graph 的 replay</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>[1024]</code></td>
+<td>4 个 block，<code>n=1024</code></td>
+<td>4 个 block，<code>n=1024</code></td>
+</tr>
+<tr class="even">
+<td><code>[2048]</code></td>
+<td>8 个 block，<code>n=2048</code></td>
+<td>仍为 4 个 block，<code>n=1024</code></td>
+</tr>
+</tbody>
+</table>
+<p>这就是 shape 限制的具体来源：<strong>由 shape 决定的 launch
+配置和参数，在 capture 时已经确定。</strong> 对普通 PyTorch CUDA
+Graph，输入需要保持 capture 时的 size 和 layout，参见 <a
+target="_blank" rel="noopener" href="https://docs.pytorch.org/docs/main/notes/cuda.html#constraints">PyTorch
+的约束说明</a>。</p>
+<h3 id="padding-与-kernel-内部的分支">padding 与 kernel 内部的分支</h3>
+<p><strong>CUDA Graph 并不要求 kernel
+内部每次执行完全相同的指令路径。</strong></p>
+<p>通过 padding，可以将不同长度的输入放入相同 shape 的
+buffer。为便于展示，假设 buffer 容量固定为 8，两次输入的有效长度分别为 5
+和 7：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs text">下标：          0  1  2  3  4  5  6  7<br><br>第一次输入：   [1, 2, 3, 4, 5, 0, 0, 0]   有效长度 = 5<br>               └──有效数据──┘ └padding┘<br><br>第二次输入：   [1, 2, 3, 4, 5, 6, 7, 0]   有效长度 = 7<br>               └─────有效数据─────┘  padding<br></code></pre></td></tr></table></figure>
+<p>本例约定 <code>0</code> 表示 padding，有效数据均非零。kernel
+读取输入值，遇到 padding 时直接返回：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-function">__global__ <span class="hljs-type">void</span> <span class="hljs-title">scale_padded</span><span class="hljs-params">(</span></span><br><span class="hljs-params"><span class="hljs-function">    <span class="hljs-type">const</span> <span class="hljs-type">int</span>* x, <span class="hljs-type">int</span>* y, <span class="hljs-type">int</span> alpha</span></span><br><span class="hljs-params"><span class="hljs-function">)</span> </span>&#123;<br>    <span class="hljs-type">int</span> i = blockIdx.x * blockDim.x + threadIdx.x;<br>    <span class="hljs-type">int</span> value = x[i];<br>    <span class="hljs-keyword">if</span> (value == <span class="hljs-number">0</span>) &#123;<br>        <span class="hljs-keyword">return</span>;  <span class="hljs-comment">// padding 位置不参与计算</span><br>    &#125;<br>    y[i] = value * alpha;<br>&#125;<br><br><span class="hljs-comment">// 仅为演示：固定启动 8 个线程，每个线程对应一个元素。</span><br>scale_padded&lt;&lt;&lt;<span class="hljs-number">1</span>, <span class="hljs-number">8</span>, <span class="hljs-number">0</span>, stream&gt;&gt;&gt;(x_ptr, y_ptr, <span class="hljs-number">2</span>);<br></code></pre></td></tr></table></figure>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th>第一次 replay</th>
+<th>第二次 replay</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>输入输出 tensor 的 shape</td>
+<td><code>[8]</code></td>
+<td><code>[8]</code></td>
+</tr>
+<tr class="even">
+<td>启动的线程数</td>
+<td>8</td>
+<td>8</td>
+</tr>
+<tr class="odd">
+<td><code>x[5]</code> 的值</td>
+<td>0（padding）</td>
+<td>6（有效数据）</td>
+</tr>
+<tr class="even">
+<td>下标为 5 的线程</td>
+<td>读到 0，直接返回</td>
+<td>读到 6，计算 <code>y[5] = 6 × 2</code></td>
+</tr>
+</tbody>
+</table>
+<p>第一次 replay 中，<code>i = 5</code> 的线程读到 <code>0</code>
+后直接返回；第二次 replay 中，<code>i = 5</code> 的线程读到
+<code>6</code> 并执行乘法。分支条件由 GPU
+执行时读取的输入值决定，无须修改 graph。</p>
+<p>调用方只使用有效数据对应的输出，padding 位置不会被此 kernel
+更新。</p>
+<h2 id="为什么-decode-可以使用-cuda-graph">为什么 decode 可以使用 CUDA
+Graph</h2>
+<p>首先需要明确 LLM 如何组织计算。用 <code>T</code> 表示本轮输入的总
+token 数，<code>H</code> 表示 hidden size，hidden states 通常表示为
+<code>[T, H]</code>：每一行对应一个 token 的隐藏向量。</p>
+<p><strong>常见 Transformer 中的 Linear、RMSNorm 和 MLP 都是 token level
+的运算：对每个 token 的隐藏向量独立应用相同的变换。</strong>
+例如，Linear 的矩阵乘 <code>Y = X @ W</code> 可以按行理解为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">X：[T, H]           W：[H, D]          Y：[T, D]<br><br>token 0 的向量  ────── @ W ──────→ token 0 的输出<br>token 1 的向量  ────── @ W ──────→ token 1 的输出<br>token 2 的向量  ────── @ W ──────→ token 2 的输出<br>      ...                              ...<br></code></pre></td></tr></table></figure>
+<p>这些 token 共享权重
+<code>W</code>，但每一行的结果不依赖其他行。实现时通常将所有行合并为一次矩阵乘，以提高
+GPU 利用率。RMSNorm 则沿每行的 hidden dimension 归一化，MLP
+也分别变换每个 token 的向量。因此，对这些算子而言，<code>T</code> 个
+token 来自一条请求还是多条请求，不影响逐 token 的计算方式。</p>
+<p>attention 负责 token 之间的信息交互：每个当前 token 的
+query，需要读取该请求中允许访问的 token 的 K/V。因此，attention
+除了当前输入，还需要知道请求边界和历史 KV 长度。</p>
+<p>在使用 KV cache 的普通单 token decode 中，每条请求每轮只输入一个新
+token。Linear、RMSNorm、MLP 等算子只处理本轮的 <code>T</code> 个
+token；attention 通过 KV cache 读取历史信息，无须重新计算历史 token
+的这些逐 token 变换。只要本轮 token 数 <code>T</code> 固定，当前 hidden
+states 就保持为 <code>[T, H]</code>，即使历史 KV 长度仍在增长。</p>
+<p>例如，连续两轮 decode 的状态可以是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">                    第 t 轮              第 t+1 轮<br>hidden states       [4, H]               [4, H]<br>sequence lengths    [128, 256, 80, 512]  [129, 257, 81, 513]<br></code></pre></td></tr></table></figure>
+<p><code>sequence lengths</code> tensor 的 shape 始终为
+<code>[4]</code>，变化的是其中的四个整数。</p>
+<p>对于采用 paged KV cache 的实现，KV cache 可以来自预先分配的物理 block
+池。逻辑序列访问哪些 block，由 block table 描述。跨越一个 block
+边界时，框架可以分配新的逻辑映射，更新表项，而不移动整个 KV cache。</p>
+<p>attention kernel 启动时，传入的是 sequence lengths buffer
+的指针，而不是其中每条请求的长度值。capture 固定了这个指针；每轮 decode
+只需更新 buffer 中的长度，例如从 <code>[128, 256, 80, 512]</code> 更新为
+<code>[129, 257, 81, 513]</code>。kernel 在 GPU
+上执行时，再从同一个地址读取本轮的长度，确定需要访问多少历史 KV。</p>
+<p><strong>sequence lengths 的内容改变，不需要更新 kernel
+的启动参数。</strong> 在 kernel、grid、block
+等其余启动配置也保持不变的前提下，不同 sequence length 就可以复用同一张
+CUDA Graph。</p>
+<p>block table 和 slot mapping 也可以采用相同的方式：保持 buffer
+地址不变，通过更新表项指定读取哪些 KV block，以及将新 token 的 K/V
+写入哪里。</p>
+<p>下面是这一类实现的数据流示意，具体字段和布局由 backend 决定：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs text">固定地址的 hidden states ───────────────┐<br>固定地址的 KV cache block 池 ───────────┤<br>固定地址、内容可更新的 sequence lengths ─┼─→ attention kernel<br>固定地址、内容可更新的 block table ─────┤<br>固定地址、内容可更新的 slot mapping ────┘<br></code></pre></td></tr></table></figure>
+<p>这并不意味着所有 attention kernel
+都天然支持这种用法。如果某个实现根据 host 端的最大序列长度选择 split
+数量、分配 workspace，或者改变 launch grid，那么仅更新 device metadata
+就不够了。backend 仍需要提供与 CUDA Graph 兼容的调度方式。</p>
+<p>再考虑 <code>T</code> 的变化。continuous batching
+中，请求会加入或退出，每轮输入的 token
+数也会随之变化。常见做法是预先为若干 <code>T</code> capture
+graph，例如：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">capture sizes：1, 2, 4, 8, 16, 32<br>实际 T：     13<br>选择 graph： T = 16<br></code></pre></td></tr></table></figure>
+<p>框架将输入填充到 16，并通过有效长度、mask 或安全的占位 metadata
+处理多出的条目。尤其是 KV cache 写入，padding
+请求必须具有正确的屏蔽语义。</p>
+<p>因此，decode 的动态性通常由两部分共同承担：graph 外部选择适合当前
+<code>T</code> 的图，graph 内部通过 device metadata
+处理变化的序列状态。比如vLLM 的 batch descriptor 和 CUDA Graph
+dispatcher 就是在这一层管理 capture 与 replay，参见其 <a
+target="_blank" rel="noopener" href="https://docs.vllm.ai/en/latest/design/cuda_graphs/#detailed-design">CUDA
+Graphs 设计文档</a>。</p>
+<h2 id="prefill-attention-的限制来自哪里">prefill attention
+的限制来自哪里</h2>
+<p>普通 decode 中，每条请求本轮只有一个 query token；prefill
+中，每条请求本轮的 query token 数也会变化。<strong>即使总 token 数
+<code>T</code> 相同，attention 的 launch grid 仍可能不同。</strong></p>
+<p>例如，两次 prefill 都有两条请求、总共 256 个 token，但请求长度分别是
+<code>[128, 128]</code> 和 <code>[192, 64]</code>。Linear、RMSNorm、MLP
+的输入都可以保持为 <code>[256, H]</code>；attention
+则需要按请求处理各自的 query。</p>
+<p>以 FlashAttention 2 的普通 forward 路径为例，host 按最长 query
+长度计算分块数，再为每条请求、每个 head 启动对应数量的 block。假设选用的
+kernel 每个 block 处理 128 个 query token，则有：</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th>第一次 prefill</th>
+<th>第二次 prefill</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>两条请求的 query 长度</td>
+<td><code>[128, 128]</code></td>
+<td><code>[192, 64]</code></td>
+</tr>
+<tr class="even">
+<td>总 token 数 <code>T</code></td>
+<td>256</td>
+<td>256</td>
+</tr>
+<tr class="odd">
+<td>最长 query 长度</td>
+<td>128</td>
+<td>192</td>
+</tr>
+<tr class="even">
+<td>每条请求、每个 head 启动的 block 数</td>
+<td>1</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+<p>这里的分块数按 <code>ceil(最长 query 长度 / 128)</code> 计算；128
+是本例选取的 query 分块大小。对应逻辑见 <a
+target="_blank" rel="noopener" href="https://github.com/Dao-AILab/flash-attention/blob/main/csrc/flash_attn/src/flash_fwd_launch_template.h#L55">FlashAttention
+的 grid 计算</a>，最长 query 长度由 <a
+target="_blank" rel="noopener" href="https://github.com/Dao-AILab/flash-attention/blob/main/csrc/flash_attn/flash_api.cpp#L637">host
+API 传入</a>。</p>
+<p>如果按第一组输入 capture，图中为每条请求记录的只有一个
+block。第二组输入中，第一条请求需要两个 block；直接 replay
+原图，就缺少处理后 64 个 query token 的 block。<strong>更新 device
+buffer 中的请求长度和边界，不会改变已经捕获的 grid。</strong></p>
+<p>这就是仅按 <code>T</code> 复用 prefill graph
+可能失败的具体原因。要让这两组输入复用同一张图，可以提前按足够大的 query
+长度上限建图，让 kernel 从 device metadata
+读取实际长度并跳过多余分块，同时保证其他启动参数和 buffer
+地址也兼容。</p>
+<p>如果 attention 路径仍需要 CPU 每轮重新计算 launch，框架可以采用
+piecewise CUDA Graph：只捕获 attention 前后的计算，attention
+每轮正常启动。</p>
+<h2 id="动态控制流与-torch.cond">动态控制流与 torch.cond</h2>
+<p>前面讨论的是同一个 kernel 内部的动态性。如果数据决定的是执行哪一组
+kernel，就涉及 graph 层面的控制流。</p>
+<p>例如：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">if</span> pred.item():<br>    y = x.sin()<br><span class="hljs-keyword">else</span>:<br>    y = x.cos()<br></code></pre></td></tr></table></figure>
+<p>假设 <code>pred</code> 是 CUDA tensor，这里的 <code>.item()</code>
+需要将结果交给 CPU，Python 才能决定下一步调用哪个算子。这种依赖 GPU
+结果的 host 分支不能直接放入普通 stream capture。</p>
+<p>如果 <code>pred</code> 是 Python bool，capture
+时可以完成分支判断，但只会记录当时实际调用的分支。之后修改这个
+bool，replay 也不会重新执行 Python 的 <code>if</code>。</p>
+<p>CUDA 的 conditional nodes
+提供了另一种表达方式：预先构建分支或循环体，由 device
+端的条件决定执行哪部分图。条件可以通过 kernel 中的
+<code>cudaGraphSetConditional</code> 设置，判断过程不需要将控制权交回
+CPU。参见 NVIDIA 的 <a
+target="_blank" rel="noopener" href="https://developer.nvidia.com/blog/dynamic-control-flow-in-cuda-graphs-with-conditional-nodes/">Conditional
+Nodes 介绍</a>。</p>
+<p>PyTorch 中对应的高层表达是 <code>torch.cond</code>。<strong>这里使用
+<code>torch.compile</code>，是为了把 <code>torch.cond</code>
+表达的条件分支转换成 CUDA Graph 的条件节点。</strong></p>
+<p>下面将分支前的 <code>x * 2</code>、条件分支和分支后的
+<code>z * 3</code> 写入同一个 <code>forward</code>，再对整个
+<code>forward</code> 使用 <code>cudagraphs</code>
+backend。<strong>capture 的范围是整个
+<code>forward</code>，包括分支前后的计算。</strong> backend
+在首次几次调用中自动完成 warmup 和 capture，后续调用则 replay
+整张图：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">import</span> torch<br><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">positive_branch</span>(<span class="hljs-params">h</span>):<br>    <span class="hljs-keyword">return</span> h + <span class="hljs-number">1</span><br><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">negative_branch</span>(<span class="hljs-params">h</span>):<br>    <span class="hljs-keyword">return</span> h - <span class="hljs-number">1</span><br><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">forward</span>(<span class="hljs-params">pred, x</span>):<br>    h = x * <span class="hljs-number">2</span><br>    z = torch.cond(pred, positive_branch, negative_branch, (h,))<br>    <span class="hljs-keyword">return</span> z * <span class="hljs-number">3</span><br><br><br>compiled_forward = torch.<span class="hljs-built_in">compile</span>(forward, backend=<span class="hljs-string">&quot;cudagraphs&quot;</span>, fullgraph=<span class="hljs-literal">True</span>)<br><br><span class="hljs-keyword">with</span> torch.inference_mode():<br>    x = torch.ones(<span class="hljs-number">8</span>, device=<span class="hljs-string">&quot;cuda&quot;</span>)<br>    pred = torch.tensor(<span class="hljs-literal">True</span>, device=<span class="hljs-string">&quot;cuda&quot;</span>)<br><br>    <span class="hljs-comment"># backend 在这些调用中完成整个 forward 的 warmup、capture 和首次 replay。</span><br>    <span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">3</span>):<br>        compiled_forward(pred, x)<br><br>    pred.fill_(<span class="hljs-literal">True</span>)<br>    y = compiled_forward(pred, x)   <span class="hljs-comment"># replay，结果为 8 个 9.0</span><br><br>    pred.fill_(<span class="hljs-literal">False</span>)<br>    y = compiled_forward(pred, x)   <span class="hljs-comment"># replay 同一张图，结果为 8 个 3.0</span><br></code></pre></td></tr></table></figure>
+<p>对应的整张 CUDA Graph 可以表示为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">                    forward 的 CUDA Graph<br>┌────────────────────────────────────────────────────┐<br>│                  ┌─ true：z = h + 1 ──┐             │<br>│ h = x * 2 → 条件 ┤                    ├→ y = z * 3  │<br>│                  └─ false：z = h - 1 ─┘             │<br>└────────────────────────────────────────────────────┘<br></code></pre></td></tr></table></figure>
+<p>两次调用更新的是同一个 device bool tensor <code>pred</code>
+的内容。<code>compiled_forward(pred, x)</code> 内部通过一次 graph launch
+执行分支前的计算、选中的分支和分支后的计算。示例没有显式的
+<code>with torch.cuda.graph(g):</code>，是因为整张图的 capture 和 replay
+都由 backend 管理。</p>
+<p>普通 CUDA Graph capture 本身不要求
+<code>torch.compile</code>。在本文实测的 PyTorch 2.13.0+cu130 中，仅将
+<code>torch.cond</code> 放入
+<code>with torch.cuda.graph(g):</code>，仍会在读取条件时触发 capture
+错误；提前 warmup 两个分支也不能改变这条执行路径。上面的 backend
+用法参见 <a
+target="_blank" rel="noopener" href="https://docs.pytorch.org/docs/main/notes/cuda.html#data-dependent-control-flow">Data
+Dependent Control Flow</a>。</p>
+<p><code>torch.cond</code> 保留了两个分支的结构，使运行时选择可以在
+device 端完成。示例中的两个分支都产生相同 shape、dtype 和 layout
+的输出，这也使后续计算能够使用一致的 buffer 约定。</p>
+<p>它并不意味着任意 Python 控制流或任意动态输出形状都能进入 CUDA
+Graph。更准确的理解是：分支结构提前建立，每次 replay
+可以选择不同的执行路径。</p>
+<h2 id="capture-期间的执行语义">capture 期间的执行语义</h2>
+<p>“执行”在这里需要区分 host 与 device。</p>
+<p>在 <code>with torch.cuda.graph(g):</code> 内，Python
+代码仍然执行，算子的 host 端实现也会被调用。框架需要计算 metadata、选择
+kernel、分配输出 tensor，并调用 CUDA
+API，这样才能知道应当向图中添加哪些节点。</p>
+<p>但提交到正在 capture 的 stream 中的 GPU
+工作不会在此时执行，而是被记录为 graph 节点。<code>capture_end</code>
+得到图，后续 graph launch 才会执行其中的工作。这是 <a
+target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cuda-graphs.html#stream-capture">CUDA
+stream capture 的定义</a>。</p>
+<p>下面的例子可以同时观察这两个层面的行为：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">import</span> torch<br><br><br>static_x = torch.zeros(<span class="hljs-number">4</span>, device=<span class="hljs-string">&quot;cuda&quot;</span>)<br>static_y = torch.full_like(static_x, -<span class="hljs-number">1</span>)<br><br><span class="hljs-comment"># 在 side stream 上 warmup，使算子完成必要的初始化。</span><br>warmup_stream = torch.cuda.Stream()<br>warmup_stream.wait_stream(torch.cuda.current_stream())<br><span class="hljs-keyword">with</span> torch.cuda.stream(warmup_stream):<br>    <span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">3</span>):<br>        torch.add(static_x, <span class="hljs-number">1</span>, out=static_y)<br>torch.cuda.current_stream().wait_stream(warmup_stream)<br><br><span class="hljs-comment"># 恢复一个便于观察的初值。</span><br>static_y.fill_(-<span class="hljs-number">1</span>)<br>torch.cuda.synchronize()<br><br>g = torch.cuda.CUDAGraph()<br>host_calls = <span class="hljs-number">0</span><br><br><span class="hljs-keyword">with</span> torch.cuda.graph(g):<br>    host_calls += <span class="hljs-number">1</span><br>    torch.add(static_x, <span class="hljs-number">1</span>, out=static_y)<br><br><span class="hljs-comment"># 以下读取均位于 capture 之外。</span><br><span class="hljs-built_in">print</span>(host_calls, static_y.tolist())<br><span class="hljs-comment"># 预期：1 [-1.0, -1.0, -1.0, -1.0]</span><br><br>static_x.fill_(<span class="hljs-number">3</span>)<br>g.replay()<br><span class="hljs-built_in">print</span>(host_calls, static_y.tolist())<br><span class="hljs-comment"># 预期：1 [4.0, 4.0, 4.0, 4.0]</span><br><br>static_x.fill_(<span class="hljs-number">5</span>)<br>g.replay()<br><span class="hljs-built_in">print</span>(host_calls, static_y.tolist())<br><span class="hljs-comment"># 预期：1 [6.0, 6.0, 6.0, 6.0]</span><br></code></pre></td></tr></table></figure>
+<p>capture 之后，<code>host_calls</code> 已经增加，但
+<code>static_y</code> 仍然是事先写入的 <code>-1</code>。replay 之后，GPU
+输出发生变化，Python 计数器却不会继续增加。</p>
+<p>这里使用原地写入，是为了保留一个确定的输出初值。如果在 capture 内使用
+<code>static_y = static_x + 1</code>，PyTorch 同样会创建输出
+tensor，但在首次 replay 前，不应把它的内容当作这次加法的结果。</p>
+<p>一些封装会在 capture 前运行 warmup，在 capture 后立即
+replay，因此观察外层函数时，可能会看到输出已经完成计算。那是封装额外执行的结果，不能据此认为
+stream capture 本身执行了被记录的 kernel。</p>
+<h3 id="为什么同步和读取结果会失败">为什么同步和读取结果会失败</h3>
+<p>capture 期间，GPU 工作尚未被提交执行，自然不能要求 CPU
+等待其中某个结果完成。常见的不兼容操作包括：</p>
+<ul>
+<li>对正在 capture 的 stream 调用 <code>cudaStreamSynchronize</code>
+或查询执行状态。</li>
+<li>对 captured event 调用 <code>cudaEventSynchronize</code>
+或查询完成状态。</li>
+<li>调用覆盖当前 capture 的 device 级同步，例如
+<code>torch.cuda.synchronize()</code>。</li>
+<li>通过 CUDA tensor 的 <code>.item()</code>
+或需要同步的拷贝，将数据读回 CPU 并参与后续计算。</li>
+</ul>
+<p>这些限制针对的是 capture 中的执行状态及其依赖，并不是所有与 stream 或
+event 有关的 API 都被禁止。例如，符合 capture 规则的
+<code>cudaEventRecord</code> 和 <code>cudaStreamWaitEvent</code>
+可以用来建立图内依赖。CUDA 文档对<a
+target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cuda-graphs.html#prohibited-and-unhandled-operations">不允许的操作</a>和<a
+target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cuda-graphs.html#cross-stream-dependencies-and-events">跨
+stream 依赖</a>作了分别说明。</p>
+<p>这也解释了为什么“异步 API”不一定就能 capture：如果 host
+后续逻辑必须读取拷贝结果才能确定
+launch，仍然没有消除数据依赖。是否兼容，需要检查完整调用路径。</p>
+<h2 id="cuda-graph-与-stream">CUDA Graph 与 stream</h2>
+<p>stream 用来组织异步提交的 GPU 工作。在通常的执行语义下，同一 stream
+中的操作按提交顺序执行；不同 stream 之间需要通过 event
+等机制建立依赖。CUDA Graph
+则将这些操作及其依赖保存下来，供后续重复执行。</p>
+<p>stream 在 capture 和 replay 中承担不同的作用：</p>
+<table>
+
+<thead>
+<tr class="header">
+<th>阶段</th>
+<th>stream 的作用</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>capture</td>
+<td>将 stream 内的先后顺序、stream 之间的等待关系转化为图中的依赖</td>
+</tr>
+<tr class="even">
+<td>replay</td>
+<td>确定整张 graph 与图外其他工作的执行顺序</td>
+</tr>
+</tbody>
+</table>
+<h3 id="多个-stream-如何进入同一张图">多个 stream 如何进入同一张图</h3>
+<p>如果在一个 stream 中依次 capture 四个
+kernel，得到的依赖就是一条链。要表达可以并行的分支，可以在 capture
+中使用多个 stream。</p>
+<p>下面用四个操作构造一个例子。所有 buffer 都提前分配，并在
+warmup、capture 和 replay 期间保留引用：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">import</span> torch<br><br><br>static_x = torch.zeros(<span class="hljs-number">8</span>, device=<span class="hljs-string">&quot;cuda&quot;</span>)<br>z = torch.empty_like(static_x)<br>a = torch.empty_like(static_x)<br>b = torch.empty_like(static_x)<br>static_y = torch.empty_like(static_x)<br>s0 = torch.cuda.Stream()<br>s1 = torch.cuda.Stream()<br><br><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">workload</span>():  <span class="hljs-comment"># 在 s0 为当前 stream 时调用。</span><br>    torch.mul(static_x, <span class="hljs-number">2</span>, out=z)       <span class="hljs-comment"># K0</span><br><br>    s1.wait_stream(s0)<br>    torch.add(z, <span class="hljs-number">1</span>, out=a)             <span class="hljs-comment"># K1，在 s0 上</span><br>    <span class="hljs-keyword">with</span> torch.cuda.stream(s1):<br>        torch.mul(z, <span class="hljs-number">3</span>, out=b)         <span class="hljs-comment"># K2，在 s1 上</span><br><br>    s0.wait_stream(s1)<br>    torch.add(a, b, out=static_y)       <span class="hljs-comment"># K3，在 s0 上</span><br><br><br>s0.wait_stream(torch.cuda.current_stream())<br><span class="hljs-keyword">with</span> torch.cuda.stream(s0):<br>    <span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">3</span>):<br>        workload()<br>torch.cuda.current_stream().wait_stream(s0)<br><br>g = torch.cuda.CUDAGraph()<br><span class="hljs-keyword">with</span> torch.cuda.graph(g, stream=s0):<br>    workload()<br></code></pre></td></tr></table></figure>
+<p>第一次 <code>wait_stream</code> 使 <code>K2</code> 依赖
+<code>K0</code>，第二次使 <code>K3</code> 依赖 <code>K2</code>。结合
+<code>s0</code> 自身的顺序，最终得到：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">              ┌── K1：a = z + 1 ──┐<br>K0：z = x * 2 ┤                    ├── K3：y = a + b<br>              └── K2：b = z * 3 ──┘<br></code></pre></td></tr></table></figure>
+<p><code>K1</code> 和 <code>K2</code> 都读取
+<code>z</code>，但写入不同的输出，因此可以并行；<code>K3</code>
+必须等待两者完成。是否实际重叠执行，还取决于 GPU 资源和调度。</p>
+<p>这里的 <code>wait_stream</code> 通过 event 表达依赖，capture
+时会将依赖加入图中。它不要求 CPU 等待 kernel 执行完成。参与同一次
+capture 的其他 stream，需要在结束前通过依赖汇合回起始 stream；仅切换当前
+stream，并不会自动建立这种关系。参见 <a
+target="_blank" rel="noopener" href="https://docs.pytorch.org/docs/main/notes/cuda.html#usage-with-multiple-streams">PyTorch
+多 stream capture 示例</a>。</p>
+<h2 id="pytorch-如何处理-allocator">PyTorch 如何处理 allocator</h2>
+<p>当我们计算一个巨大的神经网络时，除了权重是固定的、输入是给定的，很多中间隐藏层的输出都是临时创建、计算、销毁的。以不记录梯度的
+forward 为例：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-meta">@torch.no_grad()</span><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">forward</span>(<span class="hljs-params">x, w1, w2</span>):<br>    h = x @ w1<br>    h = torch.relu(h)<br>    y = h @ w2<br>    <span class="hljs-keyword">return</span> y<br></code></pre></td></tr></table></figure>
+<p>在这个函数返回时，局部变量 <code>h</code> 不再被 Python 持有。但 CUDA
+Graph 中的后续 replay
+仍然会向中间结果对应的地址写入数据，再从这些地址读取。显然，不能直接将这些地址交给无关
+tensor 使用。</p>
+<p>另一方面，如果每个临时 tensor
+都必须永久保留独占显存，深层网络的内存开销又会非常大。解决这个问题，需要区分
+tensor 对象的生命周期、allocator 中 block
+的复用，以及底层显存的释放。</p>
+<h3 id="缓存分配与-stream-顺序">缓存分配与 stream 顺序</h3>
+<p>先看普通 eager 执行。PyTorch 的 native caching allocator
+会缓存已经申请的显存块，tensor 释放时，通常只是将对应 block
+归还缓存，并不立即调用 <code>cudaFree</code>。</p>
+<p>对于同一 stream 上的使用，allocator
+可以利用顺序关系复用内存，不必每次都等 GPU 完成。</p>
+<p>假设某段代码的内存使用关系如下：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">kernel A：写入临时 buffer p<br>kernel B：读取 p，写入另一个 buffer<br>          p 对应的临时 tensor 释放<br>kernel C：将 p 复用为自己的输出<br></code></pre></td></tr></table></figure>
+<p>即使 CPU 提交 kernel C 时，GPU 尚未执行完 kernel
+A，也不妨碍这种复用。只要 A、B、C 按上述依赖顺序执行，C 对
+<code>p</code> 的覆盖就发生在 B 读取之后。</p>
+<p>跨 stream 则不能仅凭 host 调用顺序判断安全性。allocator 通常需要结合
+<code>record_stream</code> 和 event 等机制，确认其他 stream 不再使用该
+block。相关实现可以参考 <a
+target="_blank" rel="noopener" href="https://github.com/pytorch/pytorch/blob/main/c10/cuda/CUDACachingAllocator.cpp">CUDACachingAllocator.cpp</a>
+开头关于 stream 与内存复用的说明。</p>
+<h3 id="graph-private-memory-pool">graph-private memory pool</h3>
+<p>capture 期间，PyTorch 的 native caching allocator 会将相应分配导向
+graph-private memory pool。临时 tensor
+仍然可以创建和释放，满足依赖条件的 block
+也仍然可以在池内复用；需要额外保证的是，这些地址在后续 replay 时仍由该
+graph 使用。</p>
+<p>可以将前面的例子延伸为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs text">capture 期间记录：<br>    A 写 p → B 读 p → C 写 p<br><br>第一次 replay：<br>    A 写 p → B 读 p → C 写 p<br><br>第二次 replay：<br>    A 写 p → B 读 p → C 写 p<br></code></pre></td></tr></table></figure>
+<p><code>p</code> 可以先后服务于不同临时结果。每次 replay
+都保留相同的依赖关系，因此也保留了复用所需的先后顺序。</p>
+<p>replay 时不会重新进入 Python
+<code>forward</code>，也不会重新执行其中的 tensor 分配逻辑。kernel
+直接使用 capture 时确定的地址。这意味着 allocator 不需要在每次 replay
+中重新构造上述分配与释放过程。</p>
+<p>PyTorch 源码中的
+<code>Note [Interaction with CUDA graph capture]</code>
+专门说明了这一点：private pool 内仍然允许复用，但 graph
+存活期间会保留该池所需的内存高水位。参见 <a
+target="_blank" rel="noopener" href="https://github.com/pytorch/pytorch/blob/main/c10/cuda/CUDACachingAllocator.cpp">allocator
+源码</a>。</p>
+<p>由此也可以解释，为什么 capture 后显存占用可能高于普通
+eager：普通路径中的空闲 block 可以被其他工作复用，而 graph 的 private
+pool 需要为未来 replay 保留地址。这个占用并不等于“所有层的临时 tensor
+大小相加”，还取决于生命周期重叠、workspace、池内复用和碎片。</p>
+<p>输出 tensor
+也具有同样的地址约束。如果需要保留某次输出用于之后的计算，应在它被后续
+replay 覆盖之前复制：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs python">g.replay()<br>saved_output = static_output.clone()<br>g.replay()  <span class="hljs-comment"># static_output 的内容会被覆盖</span><br></code></pre></td></tr></table></figure>
+<p>这里假定 clone 与 replay 具有正确的 stream 顺序。仅写
+<code>saved_output = static_output</code> 不会保存结果的副本。</p>
+<p>private pool 的生命周期还与 graph 和其中仍然存活的 tensor 有关。销毁
+graph 并不意味着所有输出引用同时失效，因此也不保证显存立刻全部归还给
+CUDA。具体生命周期见 <a
+target="_blank" rel="noopener" href="https://docs.pytorch.org/docs/main/notes/cuda.html#graph-memory-management">Graph
+memory management</a>。</p>
+<h3 id="capture-期间的底层显存分配">capture 期间的底层显存分配</h3>
+<p>private pool 并不意味着所有内存都必须在 capture
+前精确分配完毕。需要区分 PyTorch 的 tensor 分配、底层
+<code>cudaMalloc</code>，以及 CUDA Graph 自身的内存节点。</p>
+<p>对于 native allocator，已有可复用 block 时，tensor 分配主要是 host
+端的缓存管理。如果确实需要新的底层分配，当前源码中的
+<code>cudaMallocMaybeCapturing</code> 会在 capture 状态下临时使用
+<code>cudaStreamCaptureModeRelaxed</code>，再进行分配。</p>
+<p>这种分配在 capture 阶段取得真实地址，随后由 private pool
+保留，并不会在每次 replay 时重新申请一份显存。对应实现同样位于 <a
+target="_blank" rel="noopener" href="https://github.com/pytorch/pytorch/blob/main/c10/cuda/CUDACachingAllocator.cpp">CUDACachingAllocator.cpp</a>。</p>
+<p>这与 <code>cudaMallocAsync</code> 被捕获为 graph 的 allocation node
+是不同的机制，后者由 CUDA 提供图内分配与释放语义，参见 <a
+target="_blank" rel="noopener" href="https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cuda-graphs.html#graph-memory-nodes">Graph
+Memory Nodes</a>。不能将 native caching allocator
+的工作方式直接套用到所有 allocator backend。</p>
+<p>这里的 relaxed mode 也不表示 kernel 会在 capture 时执行，更不会让依赖
+GPU 结果的 host
+同步变得有效。它只是允许框架在自行保证地址生命周期的前提下完成这类分配。</p>
+<h3 id="无法查询-event-时如何回收">无法查询 event 时如何回收</h3>
+<p>剩下的问题是，allocator 在 eager 下可能需要查询 event，capture
+时却不能照常依赖这些执行状态。</p>
+<p>PyTorch 对此有专门的 capture 路径。native allocator 在 capture
+期间跳过常规的 <code>process_events</code>，对需要跨 stream
+跟踪的部分回收操作作延后处理。同一 stream
+中可以根据依赖顺序证明安全的复用，仍然能够进行。</p>
+<p>较新的实现还提供 <code>graph_capture_record_stream_reuse</code>
+选项，尝试利用图的拓扑关系判断部分跨 stream
+内存何时可以安全复用。这里使用的是图中已经建立的依赖，而不是查询尚未执行的
+kernel 是否完成。对应逻辑可以从 <a
+target="_blank" rel="noopener" href="https://github.com/pytorch/pytorch/blob/main/c10/cuda/CUDACachingAllocator.cpp">allocator
+源码</a>中的 <code>process_events</code>、<code>deferred_blocks</code>
+和该配置项继续阅读。</p>
+<p>因此，capture
+中的内存管理并不是暂停所有分配和释放，而是将“可以根据依赖关系确定的复用”与“需要运行时完成状态才能确定的回收”分别处理。</p>
+<h3 id="多张-graph-能否共享内存池">多张 graph 能否共享内存池</h3>
+<p>如果每个 <code>T</code> 对应的 graph 都使用完全独立的 private
+pool，推理服务会为许多不会同时执行的 graph 重复保留内存。PyTorch
+允许通过 <code>pool</code> 参数让不同 capture 共享池，例如：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-comment"># 假设输入已经准备好，两个 workload 都已完成 warmup。</span><br>g1 = torch.cuda.CUDAGraph()<br>g2 = torch.cuda.CUDAGraph()<br><br><span class="hljs-keyword">with</span> torch.cuda.graph(g1):<br>    out1 = workload1(static_input1)<br><br><span class="hljs-keyword">with</span> torch.cuda.graph(g2, pool=g1.pool()):<br>    out2 = workload2(static_input2)<br></code></pre></td></tr></table></figure>
+<p>共享池只是允许复用，不会自动判断调用方的数据依赖是否安全。对于前后相接的图段，需要维持与
+capture 兼容的执行顺序和 tensor
+生命周期，不能让后一个图段覆盖前一个图段尚未消费的数据。</p>
+<p>对于相互独立、只会择一执行的不同 <code>T</code> 对应的
+graph，可以在不并发执行且旧输出不再需要时复用池内空间。PyTorch
+文档也列举了推理服务中多个 graph 共享池的用法，参见 <a
+target="_blank" rel="noopener" href="https://docs.pytorch.org/docs/main/notes/cuda.html#sharing-memory-across-captures">Sharing
+memory across captures</a>。</p>
+<p>从这个角度看，capture
+为临时内存确定了一套可以重复使用的地址安排。Python
+局部变量可以结束生命周期，但图所依赖的地址、执行顺序和内存所有权必须继续成立。</p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+</div>
+
+
+              
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/p/2751964952/" title="DeepSeek V4 结构速览">
+                        <span class="hidden-mobile">DeepSeek V4 结构速览</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+    <div class="statistics">
+  
+  
+
+  
+    
+      <span id="leancloud-site-pv-container" style="display: none">
+        总访问量 
+        <span id="leancloud-site-pv"></span>
+         次
+      </span>
+    
+    
+      <span id="leancloud-site-uv-container" style="display: none">
+        总访客数 
+        <span id="leancloud-site-uv"></span>
+         人
+      </span>
+    
+    
+
+  
+
+</div>
+
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    function isExpandAllEnabled() {
+      return CONFIG.toc && CONFIG.toc.expand_all === true;
+    }
+    function expandAllToc() {
+      if (!isExpandAllEnabled()) { return; }
+      jQuery('#toc-body .tocbot-is-collapsed').removeClass('tocbot-is-collapsed');
+    }
+    function updateTocToggle($li, $childList) {
+      var $toggle = $li.children('.toc-toggle');
+      if ($toggle.length === 0) { return; }
+      var collapsed = $childList.hasClass('tocbot-is-collapsed');
+      $toggle
+        .toggleClass('toc-toggle-collapsed', collapsed)
+        .toggleClass('toc-toggle-expanded', !collapsed);
+    }
+    function bindTocToggle() {
+      if (!isExpandAllEnabled()) { return; }
+      jQuery('#toc-body .toc-list-item').each(function() {
+        var $li = jQuery(this);
+        var $childList = $li.children('ol');
+        if ($childList.length === 0) {
+          if ($li.children('.toc-toggle').length === 0) {
+            $li.prepend('<span class="toc-toggle toc-toggle-placeholder" aria-hidden="true">›</span>');
+          }
+          return;
+        }
+
+        if ($li.children('.toc-toggle').length === 0) {
+          $li.prepend('<span class="toc-toggle toc-toggle-expanded" aria-hidden="true">›</span>');
+        }
+        updateTocToggle($li, $childList);
+      });
+      jQuery('#toc-body').off('click.tocToggle').on('click.tocToggle', '.toc-toggle', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var $li = jQuery(this).parent('.toc-list-item');
+        var $childList = $li.children('ol');
+        if ($childList.length === 0) { return; }
+        $childList.toggleClass('tocbot-is-collapsed');
+        updateTocToggle($li, $childList);
+      });
+      if (!window.__tocToggleObserver) {
+        window.__tocToggleObserver = new MutationObserver(function(mutations) {
+          mutations.forEach(function(mutation) {
+            if (mutation.type !== 'attributes' || mutation.attributeName !== 'class') { return; }
+            var $list = jQuery(mutation.target);
+            var $li = $list.parent('.toc-list-item');
+            if ($li.length === 0) { return; }
+            updateTocToggle($li, $list);
+          });
+        });
+        jQuery('#toc-body ol').each(function() {
+          window.__tocToggleObserver.observe(this, { attributes: true });
+        });
+      }
+    }
+    var tocConfig = Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc);
+    if (isExpandAllEnabled()) {
+      tocConfig.collapseDepth = 6;
+    }
+    window.tocbot.init(tocConfig);
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+    expandAllToc();
+    bindTocToggle();
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+        expandAllToc();
+        bindTocToggle();
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.10/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script defer src="/js/leancloud.js" ></script>
+
+  <script defer src="/js/openkounter.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>
