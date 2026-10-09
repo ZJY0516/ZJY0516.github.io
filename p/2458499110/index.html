@@ -1,0 +1,930 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=light>
+
+
+
+<head>
+  <meta charset="UTF-8">
+
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/zjy.jpg">
+  <link rel="icon" href="https://s3.bmp.ovh/imgs/2022/07/12/3c5aec6ab5c15352.jpg">
+  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Jiangyun Zhu">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="最近读C++26 要来了——C++ 标准委员会会议初体验 - 吴咏炜的文章 - 知乎时，发现了一个 C23 很好玩的新 feature：_BitInt，于是顺手研究了一下 C23 都有哪些新东西。 _BitInt：任意位宽的整数 以前我们想要一个 3 位的整数，只能用位域（bit-field）凑合，而且位域有一堆限制（不能取地址、布局由实现定义）。想要 128 位整数，得靠编译器扩展 __int1">
+<meta property="og:type" content="article">
+<meta property="og:title" content="C23 的新特性">
+<meta property="og:url" content="http://riverclouds.net/p/2458499110/index.html">
+<meta property="og:site_name" content="riverclouds">
+<meta property="og:description" content="最近读C++26 要来了——C++ 标准委员会会议初体验 - 吴咏炜的文章 - 知乎时，发现了一个 C23 很好玩的新 feature：_BitInt，于是顺手研究了一下 C23 都有哪些新东西。 _BitInt：任意位宽的整数 以前我们想要一个 3 位的整数，只能用位域（bit-field）凑合，而且位域有一堆限制（不能取地址、布局由实现定义）。想要 128 位整数，得靠编译器扩展 __int1">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-10-08T14:10:00.000Z">
+<meta property="article:modified_time" content="2026-10-09T04:06:46.000Z">
+<meta property="article:author" content="Jiangyun Zhu">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+  
+  <title>C23 的新特性 - riverclouds</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1749284_5i9bdhy70f8.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+  
+<link rel="stylesheet" href="/css/trakt/iconfont.css">
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"riverclouds.net","root":"/","version":"1.9.9","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":false},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"expand_all":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"tencent":{"sid":null,"cid":null},"leancloud":{"app_id":"mWFBKEzCCHdRIBnFXmqtMjOw-gzGzoHsz","app_key":"rRz69xIsKIR8svfesk7TGbvW","server_url":"https://mwfbkezc.lc-cn-n1-shared.com","path":"window.location.pathname","ignore_local":true},"openkounter":{"server_url":"https://open-kounter.mintimate.cn","path":"window.location.pathname","ignore_local":false},"umami":{"src":null,"website_id":null,"domains":null,"start_time":"2024-01-01T00:00:00.000Z","token":null,"api_server":null},"gtag":null,"woyaola":null,"cnzz":null},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+  
+    
+  
+
+
+
+
+  
+<meta name="generator" content="Hexo 8.1.2"><link rel="alternate" href="/atom.xml" title="riverclouds" type="application/atom+xml">
+</head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>riverclouds</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content (desktop) -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/links/" target="_self">
+                <i class="iconfont icon-link-fill"></i>
+                <span>友链</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile grid menu overlay -->
+<div id="mobile-grid-menu" class="d-lg-none">
+  <div class="mobile-grid-menu-inner">
+    <div class="container">
+      <div class="row">
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-home-fill"></i>
+                  <span>首页</span>
+                </div>
+              </a>
+            </div>
+          
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/archives/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-archive-fill"></i>
+                  <span>归档</span>
+                </div>
+              </a>
+            </div>
+          
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/about/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-user-fill"></i>
+                  <span>关于</span>
+                </div>
+              </a>
+            </div>
+          
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/links/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-link-fill"></i>
+                  <span>友链</span>
+                </div>
+              </a>
+            </div>
+          
+        
+        
+          <div class="col-4 mobile-grid-cell" id="mobile-search-btn">
+            <a href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <div class="mobile-grid-item">
+                <i class="iconfont icon-search"></i>
+                <span>搜索</span>
+              </div>
+            </a>
+          </div>
+        
+        
+          <div class="col-4 mobile-grid-cell" id="mobile-color-toggle-btn"
+               data-label-light="开灯"
+               data-label-dark="关灯">
+            <a href="javascript:;" aria-label="Color Toggle">
+              <div class="mobile-grid-item">
+                <i class="iconfont icon-dark" id="mobile-color-toggle-icon"></i>
+                <span id="mobile-color-toggle-label">关灯</span>
+              </div>
+            </a>
+          </div>
+        
+      </div>
+    </div>
+  </div>
+</div>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="C23 的新特性"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2026-10-08 22:10" pubdate>
+          2026年10月8日
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          3.6k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          30 分钟
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">C23 的新特性</h1>
+            
+              <p id="updated-time" class="note note-info" style="">
+                
+                  
+                    本文最后更新于 2026年10月9日
+                  
+                
+              </p>
+            
+            
+              <div class="markdown-body">
+                
+                <p>最近读<a
+target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/2022070869531395702">C++26
+要来了——C++ 标准委员会会议初体验 - 吴咏炜的文章 - 知乎</a>时，发现了一个
+C23 很好玩的新 feature：<code>_BitInt</code>，于是顺手研究了一下 C23
+都有哪些新东西。</p>
+<h2 id="bitint任意位宽的整数">_BitInt：任意位宽的整数</h2>
+<p>以前我们想要一个 3
+位的整数，只能用位域（bit-field）凑合，而且位域有一堆限制（不能取地址、布局由实现定义）。想要
+128 位整数，得靠编译器扩展 <code>__int128</code>。想要 4096
+位的密码学大整数？老老实实上 GMP。</p>
+<p>C23 用 <code>_BitInt(N)</code> 统一了这一切：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">_BitInt</span>(<span class="hljs-number">3</span>)          a;   <span class="hljs-comment">// 有符号 3 位整数，范围 [-4, 3]</span><br><span class="hljs-type">unsigned</span> <span class="hljs-type">_BitInt</span>(<span class="hljs-number">3</span>) b;   <span class="hljs-comment">// 无符号 3 位整数，范围 [0, 7]</span><br><span class="hljs-type">unsigned</span> <span class="hljs-type">_BitInt</span>(<span class="hljs-number">128</span>) c; <span class="hljs-comment">// 128 位无符号整数，不用 __int128 了</span><br></code></pre></td></tr></table></figure>
+<p>规则很简单：</p>
+<ul>
+<li><code>N</code> 必须是整数常量表达式；</li>
+<li><code>unsigned _BitInt(N)</code> 要求
+<code>N &gt;= 1</code>，有符号的 <code>_BitInt(N)</code> 要求
+<code>N &gt;= 2</code>（得留一位给符号位，写 <code>_BitInt(1)</code>
+会直接报
+<code>signed _BitInt must have a bit size of at least 2</code>）；</li>
+<li><code>N</code> 的上限由实现定义，通过 <code>&lt;limits.h&gt;</code>
+里的 <code>BITINT_MAXWIDTH</code> 查询，标准只要求至少为 64。实测 Apple
+Clang 17 是 128（有点抠门），上游 Clang 支持到 2^23 = 8388608，GCC
+支持到 65535。</li>
+</ul>
+<h3 id="回绕行为">回绕行为</h3>
+<p>小位宽整数的溢出行为和位域一样是回绕的：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">_BitInt</span>(<span class="hljs-number">3</span>) x = <span class="hljs-number">3</span>;  <span class="hljs-comment">// 最大值</span><br>x += <span class="hljs-number">1</span>;            <span class="hljs-comment">// 回绕到 -4</span><br><span class="hljs-built_in">printf</span>(<span class="hljs-string">&quot;%d\n&quot;</span>, (<span class="hljs-type">int</span>)x);  <span class="hljs-comment">// 输出 -4</span><br></code></pre></td></tr></table></figure>
+<h3 id="不做整数提升">不做整数提升</h3>
+<p>这是 <code>_BitInt</code>
+和普通小整数类型最大的区别。<code>char + char</code> 会先提升成
+<code>int</code> 再相加，但 <code>_BitInt</code>
+被豁免了整数提升，运算保持原位宽：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">_BitInt</span>(<span class="hljs-number">3</span>) x = <span class="hljs-number">3</span>;<br><span class="hljs-keyword">sizeof</span>(x + x);   <span class="hljs-comment">// 1，类型仍是 _BitInt(3)</span><br><br><span class="hljs-type">signed</span> <span class="hljs-type">char</span> c = <span class="hljs-number">1</span>;<br><span class="hljs-keyword">sizeof</span>(c + c);   <span class="hljs-comment">// 4，char 被提升成了 int</span><br></code></pre></td></tr></table></figure>
+<p>这一点对模拟硬件行为很重要——比如你想精确模拟一个 12 位 ADC 或者 FPGA
+里某个奇数位宽的寄存器，整数提升会悄悄改变运算语义，<code>_BitInt</code>
+不会。</p>
+<h3 id="wb-字面量后缀"><code>wb</code> 字面量后缀</h3>
+<p><code>42wb</code> 是一个 <code>_BitInt</code>
+字面量，位宽取能容纳该值的最小值（有符号要算符号位，所以
+<code>42wb</code> 的类型是 <code>_BitInt(7)</code>）：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">auto</span> lit = <span class="hljs-number">42</span>wb;<br><span class="hljs-keyword">sizeof</span>(lit);  <span class="hljs-comment">// 1</span><br></code></pre></td></tr></table></figure>
+<h3 id="printf-没有对应格式符">printf 没有对应格式符</h3>
+<p>标准没给 <code>_BitInt</code> 加新的 printf
+格式符，打印时需要先转换：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">unsigned</span> <span class="hljs-type">_BitInt</span>(<span class="hljs-number">128</span>) big = <span class="hljs-number">1</span>;<br>big &lt;&lt;= <span class="hljs-number">100</span>;<br><span class="hljs-built_in">printf</span>(<span class="hljs-string">&quot;%llu\n&quot;</span>, (<span class="hljs-type">unsigned</span> <span class="hljs-type">long</span> <span class="hljs-type">long</span>)big);  <span class="hljs-comment">// 得手动截到能打印的类型</span><br></code></pre></td></tr></table></figure>
+<p>128 位以上的值想完整打印，得自己写循环按 64 位一块块拆。</p>
+<h3 id="用途">用途</h3>
+<ul>
+<li><strong>密码学 / 大整数</strong>：ECC 常用的 256 位、521
+位（对，P-521
+就是非对齐位宽）运算，以前要么手写多精度，要么靠编译器扩展拼；</li>
+<li><strong>硬件模拟 / 嵌入式</strong>：HDL 里常见的 17 位、576
+位这种”奇怪”位宽，现在可以直接表达；</li>
+<li><strong>文件格式解析</strong>：某些协议字段不是字节对齐的，配合位域可以更自然地建模。</li>
+</ul>
+<h2 id="其他好玩的-c23-特性">其他好玩的 C23 特性</h2>
+<h3
+id="embed把文件塞进二进制"><code>#embed</code>：把文件塞进二进制</h3>
+<p>预处理器可以直接把任意文件按字节展开成逗号分隔的整数列表：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">static</span> <span class="hljs-type">const</span> <span class="hljs-type">unsigned</span> <span class="hljs-type">char</span> logo[] = &#123;<br><span class="hljs-meta">#embed <span class="hljs-string">&quot;logo.png&quot;</span></span><br>&#125;;<br><span class="hljs-comment">// logo 就是 PNG 文件的全部字节，sizeof(logo) 就是文件大小</span><br></code></pre></td></tr></table></figure>
+<p>还支持
+<code>limit</code>、<code>prefix</code>、<code>suffix</code>、<code>if_empty</code>
+等参数，这个功能也进了 C++26。以前在编译期内嵌二进制文件的各种
+trick（<code>xxd -i</code>、<code>incbin</code>、objcopy），我在<a
+href="/p/1146240077/">另一篇文章</a>里专门写过，这里就不展开了。</p>
+<h3 id="auto-类型推导"><code>auto</code> 类型推导</h3>
+<p>对，C 也有 <code>auto</code> 了，而且是 C++
+那种类型推导（原来的”自动存储期”含义因为本来就是默认值，直接被挤掉了）：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">auto</span> i = <span class="hljs-number">42</span>;      <span class="hljs-comment">// int</span><br><span class="hljs-keyword">auto</span> d = <span class="hljs-number">3.14</span>;    <span class="hljs-comment">// double</span><br></code></pre></td></tr></table></figure>
+<p>限制是必须单个声明、必须有初始化式，<code>auto a = 1, b = 2;</code>
+是不行的。</p>
+<h3
+id="constexprnullptr原生-bool"><code>constexpr</code>、<code>nullptr</code>、原生
+<code>bool</code></h3>
+<p>C 继续从 C++ 进货：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-type">constexpr</span> <span class="hljs-type">int</span> N = <span class="hljs-number">1&#x27;000&#x27;000</span>;  <span class="hljs-comment">// 真正的编译期常量，比 enum hack 和宏都干净</span><br><span class="hljs-type">int</span> *p = nullptr;             <span class="hljs-comment">// 类型是 nullptr_t，不再依赖 NULL 宏的实现细节</span><br><span class="hljs-type">bool</span> b = <span class="hljs-literal">true</span>;                <span class="hljs-comment">// 不用 #include &lt;stdbool.h&gt; 了</span><br></code></pre></td></tr></table></figure>
+<p>顺带一提，数字分隔符 <code>'</code> 和二进制字面量
+<code>0b1010</code> 也是 C23 加的。</p>
+<h3 id="typeof"><code>typeof</code></h3>
+<p>GCC 扩展进了标准，我之前专门<a
+href="/p/444892520/">写过一篇</a>，这里不重复了。值得一提的是随同标准化的还有
+<code>typeof_unqual</code>，用于去掉限定符（移除
+<code>const</code>、<code>volatile</code>、<code>atomic</code>
+等限定符）：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-keyword">typeof_unqual</span>(<span class="hljs-type">const</span> <span class="hljs-type">int</span>) k;  <span class="hljs-comment">// 类型是 int，不带 const</span><br></code></pre></td></tr></table></figure>
+<p>写泛型宏时很有用——<code>typeof</code> 会把 <code>const</code>
+原样带出来，而临时变量往往不想要的这个限定符。</p>
+<h3 id="enum-可以指定底层类型">enum 可以指定底层类型</h3>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">enum</span> <span class="hljs-title">Color</span> :</span> <span class="hljs-type">unsigned</span> <span class="hljs-type">char</span> &#123; RED, GREEN, BLUE &#125;;<br><span class="hljs-keyword">sizeof</span>(<span class="hljs-keyword">enum</span> Color);  <span class="hljs-comment">// 1</span><br></code></pre></td></tr></table></figure>
+<p>以前 enum 的底层类型由编译器挑选，不同编译器 / 不同 ABI
+下可能不一样，做二进制协议时很头疼。现在可以钉死。</p>
+<h3
+id="stdckdint.h溢出检查算术"><code>&lt;stdckdint.h&gt;</code>：溢出检查算术</h3>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&lt;stdckdint.h&gt;</span></span><br><span class="hljs-type">int</span> r;<br><span class="hljs-type">bool</span> ovf = ckd_add(&amp;r, INT_MAX, <span class="hljs-number">1</span>);  <span class="hljs-comment">// ovf == true，r 里是回绕结果</span><br></code></pre></td></tr></table></figure>
+<p><code>ckd_add</code> / <code>ckd_sub</code> / <code>ckd_mul</code>
+三个宏，类型通用。以前要手写一堆前置条件判断来防溢出，现在一步到位，而且通常能编译成直接读标志位的指令。</p>
+<h3 id="其他值得一提的">其他值得一提的</h3>
+<ul>
+<li><code>[[attributes]]</code> 语法进入
+C：<code>[[nodiscard]]</code>、<code>[[maybe_unused]]</code>、<code>[[fallthrough]]</code>、<code>[[deprecated]]</code>，<code>noreturn</code>
+也变成了属性；</li>
+<li><code>static_assert</code> 不再需要
+<code>assert.h</code>，而且支持单参数形式（省略消息）；</li>
+<li><code>#elifdef</code> / <code>#elifndef</code> 终于来了，不用
+<code>#elif defined(...)</code>；</li>
+<li><code>&lt;stdbit.h&gt;</code>
+提供了一套位操作工具：<code>stdc_count_ones</code>、<code>stdc_bit_width</code>、<code>stdc_rotate_left</code>
+等；</li>
+<li><strong>K&amp;R 函数定义被移除了</strong>，<code>int f()</code>
+的含义从”参数未知”变成了”无参数”，一个 40 年历史遗留终结；</li>
+<li><code>memset_explicit</code> 标准化，专门对付编译器把”清密钥”的
+memset 优化掉的问题。</li>
+</ul>
+<h2 id="谁在用这些特性">谁在用这些特性</h2>
+<p>我很好奇这些新东西到底有没有人用，于是在 GitHub
+上搜了一圈（排除编译器自身的测试用例），结果还挺有意思。</p>
+<h3 id="bitint-的真实用户"><code>_BitInt</code> 的真实用户</h3>
+<p>采用者比预想的多，而且集中在三类场景：</p>
+<ul>
+<li><strong>区块链的 256 位算术</strong>：<a
+target="_blank" rel="noopener" href="https://github.com/brave/brave-core/blob/master/components/brave_wallet/common/brave_wallet_types.h">Brave
+浏览器</a>的加密钱包直接
+<code>using uint256_t = unsigned _BitInt(256);</code>
+做以太坊金额运算；<a
+target="_blank" rel="noopener" href="https://github.com/hyperledger-solang/solang/blob/main/stdlib/format.c">Hyperledger
+Solang</a>（Solidity 编译器）用它做 EVM 256 位整数的十进制格式化。</li>
+<li><strong>数据库的宽整数</strong>：<a
+target="_blank" rel="noopener" href="https://github.com/ClickHouse/ClickHouse/blob/master/base/base/wide_integer_impl.h">ClickHouse</a>
+在 x86_64 上用 <code>_BitInt(256)</code> 加速 SUM 聚合的 Int256
+累加，甚至把 <code>Int8</code> 定义成 <code>signed _BitInt(8)</code>
+来解决和 <code>char</code> 的混叠问题。</li>
+<li><strong>硬件建模</strong>：<a
+target="_blank" rel="noopener" href="https://github.com/ferrandi/PandA-bambu/blob/main/etc/libbambu/ac_types/include/ac_int.h">PandA-bambu</a>（HLS
+工具）拿它当任意位宽 <code>ac_int</code> 的底层存储；Chips Alliance 的
+<a
+target="_blank" rel="noopener" href="https://github.com/chipsalliance/t1/blob/main/pokedex/model/csrc/pokedex_interface.c">t1</a>（RISC-V
+向量处理器）用
+<code>unsigned _BitInt(1)</code>、<code>_BitInt(5)</code>、<code>_BitInt(12)</code>
+表达中断标志、寄存器号、CSR 地址这些精确位宽的硬件信号。</li>
+</ul>
+<p>另外 <a
+target="_blank" rel="noopener" href="https://github.com/fmtlib/fmt/blob/11.2.0/include/fmt/base.h">fmt
+11.x</a> 用它实现 128 位格式化，<a
+target="_blank" rel="noopener" href="https://github.com/michaelforney/samurai/blob/master/htab.c">samurai</a>（ninja
+兼容构建工具）在 <code>BITINT_MAXWIDTH &gt;= 128</code> 时用它替代
+<code>__uint128_t</code>。</p>
+<p>反过来，<strong>大家以为最该用的地方反而没用</strong>：OpenSSL、Mbed
+TLS、libsodium 这些密码库零采用（尽管 P-521 这种 521
+位曲线看起来是”天选场景”），Linux 内核、QEMU、CPython、SQLite
+也都没有。原因不难理解：这些项目要兼容 MSVC 和老编译器，内核还锁在
+gnu11，密码库对侧信道和新特性极度保守。而且已采用的项目几乎全是
+Clang-only——GCC 的 <code>_BitInt</code> 实现成熟得晚，生态还没跟上。</p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+</div>
+
+
+              
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/p/602417492/" title="CUDA Graph 的执行机制与动态性">
+                        <span class="hidden-mobile">CUDA Graph 的执行机制与动态性</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+    <div class="statistics">
+  
+  
+
+  
+    
+      <span id="leancloud-site-pv-container" style="display: none">
+        总访问量 
+        <span id="leancloud-site-pv"></span>
+         次
+      </span>
+    
+    
+      <span id="leancloud-site-uv-container" style="display: none">
+        总访客数 
+        <span id="leancloud-site-uv"></span>
+         人
+      </span>
+    
+    
+
+  
+
+</div>
+
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    function isExpandAllEnabled() {
+      return CONFIG.toc && CONFIG.toc.expand_all === true;
+    }
+    function expandAllToc() {
+      if (!isExpandAllEnabled()) { return; }
+      jQuery('#toc-body .tocbot-is-collapsed').removeClass('tocbot-is-collapsed');
+    }
+    function updateTocToggle($li, $childList) {
+      var $toggle = $li.children('.toc-toggle');
+      if ($toggle.length === 0) { return; }
+      var collapsed = $childList.hasClass('tocbot-is-collapsed');
+      $toggle
+        .toggleClass('toc-toggle-collapsed', collapsed)
+        .toggleClass('toc-toggle-expanded', !collapsed);
+    }
+    function bindTocToggle() {
+      if (!isExpandAllEnabled()) { return; }
+      jQuery('#toc-body .toc-list-item').each(function() {
+        var $li = jQuery(this);
+        var $childList = $li.children('ol');
+        if ($childList.length === 0) {
+          if ($li.children('.toc-toggle').length === 0) {
+            $li.prepend('<span class="toc-toggle toc-toggle-placeholder" aria-hidden="true">›</span>');
+          }
+          return;
+        }
+
+        if ($li.children('.toc-toggle').length === 0) {
+          $li.prepend('<span class="toc-toggle toc-toggle-expanded" aria-hidden="true">›</span>');
+        }
+        updateTocToggle($li, $childList);
+      });
+      jQuery('#toc-body').off('click.tocToggle').on('click.tocToggle', '.toc-toggle', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var $li = jQuery(this).parent('.toc-list-item');
+        var $childList = $li.children('ol');
+        if ($childList.length === 0) { return; }
+        $childList.toggleClass('tocbot-is-collapsed');
+        updateTocToggle($li, $childList);
+      });
+      if (!window.__tocToggleObserver) {
+        window.__tocToggleObserver = new MutationObserver(function(mutations) {
+          mutations.forEach(function(mutation) {
+            if (mutation.type !== 'attributes' || mutation.attributeName !== 'class') { return; }
+            var $list = jQuery(mutation.target);
+            var $li = $list.parent('.toc-list-item');
+            if ($li.length === 0) { return; }
+            updateTocToggle($li, $list);
+          });
+        });
+        jQuery('#toc-body ol').each(function() {
+          window.__tocToggleObserver.observe(this, { attributes: true });
+        });
+      }
+    }
+    var tocConfig = Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc);
+    if (isExpandAllEnabled()) {
+      tocConfig.collapseDepth = 6;
+    }
+    window.tocbot.init(tocConfig);
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+    expandAllToc();
+    bindTocToggle();
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+        expandAllToc();
+        bindTocToggle();
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.10/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script defer src="/js/leancloud.js" ></script>
+
+  <script defer src="/js/openkounter.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>
