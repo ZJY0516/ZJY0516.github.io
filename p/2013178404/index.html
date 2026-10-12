@@ -1,0 +1,1081 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=light>
+
+
+
+<head>
+  <meta charset="UTF-8">
+
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/zjy.jpg">
+  <link rel="icon" href="https://s3.bmp.ovh/imgs/2022/07/12/3c5aec6ab5c15352.jpg">
+  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Jiangyun Zhu">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="背景：为什么要融合 TP 推理里，每个 Transformer block 的 attention 和 MLP 出来都会跟一次 all-reduce，紧接着是下一个 sub-layer 的 RMSNorm（外加一个残差相加）。decode 阶段 batch 很小，这几个算子全是 latency-bound：  all_reduce 走 NCCL，一次 launch + ring&#x2F;tree 的多跳；">
+<meta property="og:type" content="article">
+<meta property="og:title" content="用 Triton + Symmetric Memory 写一个 AllReduce + RMSNorm 融合算子">
+<meta property="og:url" content="http://riverclouds.net/p/2013178404/index.html">
+<meta property="og:site_name" content="riverclouds">
+<meta property="og:description" content="背景：为什么要融合 TP 推理里，每个 Transformer block 的 attention 和 MLP 出来都会跟一次 all-reduce，紧接着是下一个 sub-layer 的 RMSNorm（外加一个残差相加）。decode 阶段 batch 很小，这几个算子全是 latency-bound：  all_reduce 走 NCCL，一次 launch + ring&#x2F;tree 的多跳；">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-07-19T11:31:52.000Z">
+<meta property="article:modified_time" content="2026-07-19T11:34:44.000Z">
+<meta property="article:author" content="Jiangyun Zhu">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+  
+  <title>用 Triton + Symmetric Memory 写一个 AllReduce + RMSNorm 融合算子 - riverclouds</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1749284_5i9bdhy70f8.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+  
+<link rel="stylesheet" href="/css/trakt/iconfont.css">
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"riverclouds.net","root":"/","version":"1.9.9","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":false},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"expand_all":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"tencent":{"sid":null,"cid":null},"leancloud":{"app_id":"mWFBKEzCCHdRIBnFXmqtMjOw-gzGzoHsz","app_key":"rRz69xIsKIR8svfesk7TGbvW","server_url":"https://mwfbkezc.lc-cn-n1-shared.com","path":"window.location.pathname","ignore_local":true},"openkounter":{"server_url":"https://open-kounter.mintimate.cn","path":"window.location.pathname","ignore_local":false},"umami":{"src":null,"website_id":null,"domains":null,"start_time":"2024-01-01T00:00:00.000Z","token":null,"api_server":null},"gtag":null,"woyaola":null,"cnzz":null},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+  
+    
+  
+
+
+
+
+  
+<meta name="generator" content="Hexo 8.1.2"><link rel="alternate" href="/atom.xml" title="riverclouds" type="application/atom+xml">
+</head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>riverclouds</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content (desktop) -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/links/" target="_self">
+                <i class="iconfont icon-link-fill"></i>
+                <span>友链</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile grid menu overlay -->
+<div id="mobile-grid-menu" class="d-lg-none">
+  <div class="mobile-grid-menu-inner">
+    <div class="container">
+      <div class="row">
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-home-fill"></i>
+                  <span>首页</span>
+                </div>
+              </a>
+            </div>
+          
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/archives/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-archive-fill"></i>
+                  <span>归档</span>
+                </div>
+              </a>
+            </div>
+          
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/about/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-user-fill"></i>
+                  <span>关于</span>
+                </div>
+              </a>
+            </div>
+          
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/links/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-link-fill"></i>
+                  <span>友链</span>
+                </div>
+              </a>
+            </div>
+          
+        
+        
+          <div class="col-4 mobile-grid-cell" id="mobile-search-btn">
+            <a href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <div class="mobile-grid-item">
+                <i class="iconfont icon-search"></i>
+                <span>搜索</span>
+              </div>
+            </a>
+          </div>
+        
+        
+          <div class="col-4 mobile-grid-cell" id="mobile-color-toggle-btn"
+               data-label-light="开灯"
+               data-label-dark="关灯">
+            <a href="javascript:;" aria-label="Color Toggle">
+              <div class="mobile-grid-item">
+                <i class="iconfont icon-dark" id="mobile-color-toggle-icon"></i>
+                <span id="mobile-color-toggle-label">关灯</span>
+              </div>
+            </a>
+          </div>
+        
+      </div>
+    </div>
+  </div>
+</div>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="用 Triton + Symmetric Memory 写一个 AllReduce + RMSNorm 融合算子"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2026-07-19 19:31" pubdate>
+          2026年7月19日
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          8.6k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          72 分钟
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">用 Triton + Symmetric Memory 写一个 AllReduce + RMSNorm 融合算子</h1>
+            
+              <p id="updated-time" class="note note-info" style="">
+                
+                  
+                    本文最后更新于 2026年7月19日
+                  
+                
+              </p>
+            
+            
+              <div class="markdown-body">
+                
+                <h2 id="背景为什么要融合">背景：为什么要融合</h2>
+<p>TP 推理里，每个 Transformer block 的 attention 和 MLP 出来都会跟一次
+all-reduce，紧接着是下一个 sub-layer 的
+RMSNorm（外加一个残差相加）。decode 阶段 batch 很小，这几个算子全是
+latency-bound：</p>
+<ul>
+<li><code>all_reduce</code> 走 NCCL，一次 launch + ring/tree
+的多跳；</li>
+<li>RMSNorm 又是一个独立 kernel launch；</li>
+<li>中间还要把 all-reduce 的结果写回 HBM、再读进来给 norm。</li>
+</ul>
+<p>这些固定开销有多夸张？算一笔账：<code>M=1, N=2048, bf16</code>
+时数据一共 4KB，GB200 的 HBM 带宽约 8TB/s，纯搬运是纳秒级；但实测
+<code>NCCL all_reduce + eager RMSNorm</code> 一次要
+<strong>~40µs</strong>——几乎全是 launch 开销、多跳延迟和 HBM 往返。</p>
+<p>很自然的想法就是：<strong>把它们塞进一个 kernel</strong>，all-reduce
+的结果还热在寄存器里的时候，顺手就把残差和 RMSNorm 算掉。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><code class="hljs text">融合前后对比（一次 TP 输出）<br><br>NCCL + eager RMSNorm：<br><br>  ┌─────────────┐   HBM   ┌─────────────┐   HBM   ┌─────────────┐<br>  │ NCCL all-   │ ──写回─► │ load +      │ ──写回─► │ RMSNorm     │<br>  │ reduce      │         │ residual_add│         │ kernel      │<br>  └─────────────┘         └─────────────┘         └─────────────┘<br>      一次 launch             一次 launch             一次 launch<br>      多跳 ring/tree<br><br>Fused kernel：<br><br>  ┌─────────────────────────────────────────────────────────────┐<br>  │  all-reduce sum  ──►  + residual  ──►  RMSNorm  ──► 写回 HBM  │<br>  │         一个 Triton program，一次 launch，数据始终热在寄存器里     │<br>  └─────────────────────────────────────────────────────────────┘<br></code></pre></td></tr></table></figure>
+<h2 id="这个算子在算什么">这个算子在算什么</h2>
+<p>对一个 rank-local 的张量 <code>x</code>（shape
+<code>[M, N]</code>，也就是要被 all-reduce 的东西）：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">ar   = sum over ranks of x                 # one-shot all-reduce<br>h    = ar + residual                       # residual_out<br>rms  = rsqrt(mean(h^2, dim=-1) + eps)<br>out  = (h * rms) * weight                  # norm_out<br></code></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><code class="hljs text">单个 token 的 RMSNorm 计算流程（hidden dim = N）<br><br>   x[0]   x[1]   x[2]        x[N-1]<br>    │      │      │             │<br>    └──────┴──────┴─────────────┘<br>                 ▼<br>          sum(x[i]^2) / N      ←── 均方<br>                 │<br>                 ▼<br>          rsqrt(均方 + eps)    ←── rms（每行一个标量）<br>                 │<br>        ┌────────┼────────┐<br>        ▼        ▼        ▼            ▼<br>     x[0]     x[1]     x[2]  ...   x[N-1]<br>      │        │        │              │<br>      *        *        *              *<br>      │        │        │              │<br>    w[0]     w[1]     w[2]  ...    w[N-1]<br>      │        │        │              │<br>      ▼        ▼        ▼              ▼<br>   out[0]   out[1]   out[2]  ...   out[N-1]<br></code></pre></td></tr></table></figure>
+<h2 id="关键原语symmetric-memory">关键原语：symmetric memory</h2>
+<p>要在一个 kernel 里做
+all-reduce，就需要各卡能直接读到对方的数据。这正是 PyTorch <a
+target="_blank" rel="noopener" href="https://docs.pytorch.org/docs/stable/distributed.html#symmetric-memory">symmetric
+memory</a> 干的事情：</p>
+<blockquote>
+<p>用 <code>symm_mem.empty</code> + <code>rendezvous</code> 分配的一块
+buffer，会被映射进<strong>每一张卡</strong>的地址空间（走 NVLink /
+NVSwitch）。于是在 kernel 里，我从 <code>hdl.buffer_ptrs_dev</code>
+拿到所有 peer 的 buffer 指针，就能像读本地显存一样读别人的那份数据。</p>
+</blockquote>
+<p>有了这个原语，one-shot all-reduce
+就是：每张卡把自己的贡献放进对称显存，同步一下，然后每张卡各自把所有
+peer 的对应行加起来。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><code class="hljs text">one-shot all-reduce  across world_size GPUs（一行数据）<br><br>  GPU 0          GPU 1          GPU 2          GPU 3<br> ┌─────┐        ┌─────┐        ┌─────┐        ┌─────┐<br> │ x_0 │        │ x_1 │        │ x_2 │        │ x_3 │   各卡本地贡献<br> │row r│        │row r│        │row r│        │row r│<br> └──┬──┘        └──┬──┘        └──┬──┘        └──┬──┘<br>    │              │              │              │<br>    └──────────────┴──────────────┴──────────────┘<br>                   ▼<br>        Symmetric Memory（NVLink / NVSwitch）<br>        同一块 buffer 被映射到每张卡的地址空间<br>                   │<br>    ┌──────────────┼──────────────┐<br>    ▼              ▼              ▼              ▼<br> 读 x_0         读 x_1         读 x_2        读 x_3<br>    │              │              │              │<br>    └──────────────┴──────────────┴──────────────┘<br>                   ▼<br>            sum = x_0 + x_1 + x_2 + x_3<br>                   │<br>                   ▼<br>              residual + RMSNorm<br></code></pre></td></tr></table></figure>
+<p>笔者的实现跑在 4×GB200 上，torch 2.12 + triton 3.7。</p>
+<h2 id="总体设计">总体设计</h2>
+<p>Kernel 的结构很简单：<strong>一个 Triton program 负责一个
+token（一行）</strong>，hidden 维度放进一个 block 里，fp32 累加。每个
+program 的数据流是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs text">读自己 + 所有 peer 的第 r 行  →  fp32 求和（all-reduce）<br>  →  加 residual，写出 residual_out<br>  →  求均方、rsqrt、乘 weight，写出 norm_out<br></code></pre></td></tr></table></figure>
+<p>计算本身没有任何难度，真正的难点在<strong>各卡怎么同步</strong>——必须保证「我读
+peer 的第 r 行时，peer 已经把它写好了」。同步方式直接决定了延迟、支持的
+dtype 和实现风险。笔者实现了两种：</p>
+<table>
+
+<thead>
+<tr class="header">
+<th></th>
+<th>方案一：signal-pad barrier</th>
+<th>方案二：Lamport</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>同步信号</td>
+<td>显式屏障：signal pad 上写 1 / 等 1</td>
+<td>数据本身：哨兵值被覆盖即「到了」</td>
+</tr>
+<tr class="even">
+<td>用的原语</td>
+<td><code>atomic_xchg</code> / <code>atomic_cas</code>（sys
+作用域）</td>
+<td>普通 store + <code>volatile</code> load 自旋</td>
+</tr>
+<tr class="odd">
+<td>dtype</td>
+<td>bf16 / fp16 / fp32 均可</td>
+<td>仅 bf16（两个 bf16 打包进一个 u32）</td>
+</tr>
+<tr class="even">
+<td>跨 launch 状态</td>
+<td>无，pad 自清</td>
+<td>三缓冲 + 轮换 flag</td>
+</tr>
+<tr class="odd">
+<td>稳态延迟</td>
+<td>高（多一趟屏障 round-trip）</td>
+<td>低（数据到了就能算）</td>
+</tr>
+<tr class="even">
+<td>实现风险</td>
+<td>低，同步状态与数据解耦</td>
+<td>高，哨兵 scrub / volatile / ABA 都是坑</td>
+</tr>
+</tbody>
+</table>
+<p>读者可能会问：一个 program 负责一行，那 decode 只来一个 token
+时，整张卡不就只剩一个 CTA 在干活，上百个 SM
+全闲着？闲着就闲着——这个区间的瓶颈根本不是吞吐。M=1 时每个 program
+要读的不过 <code>world_size × N × 2B</code>（N=2048 时 16KB），一个 CTA
+拉这点数据绰绰有余；瓶颈在同步和 NVLink
+小消息传输这些固定延迟上。这一点不用争辩，后面 benchmark
+表的同一列就能看出来：N=2048 时 M 从 1 涨到 128（128 倍的
+token），lamport 只从 ~7.3µs 涨到 ~9.7µs——多花的 ~2.3µs 才是「多干 127
+行活」的真实边际成本，其余全是固定开销。</p>
+<p>那能不能把一行沿 hidden 维切给多个 program？all-reduce 部分好切，但
+RMSNorm 要整行的 sum of squares 才能算 rms——切了 N，每个 CTA
+只有部分和，必须跨 CTA
+再归约一次，等于把融合省掉的同步又加了回来（TRT-LLM/flashinfer 的
+two-shot 就是这么干的，小 batch 下反而更慢）。所以整行放进一个 block
+是刻意的取舍：宁可单 CTA 低利用率，也要让行统计量留在本地寄存器里。</p>
+<p>下面分别说。</p>
+<h2 id="方案一signal-pad-barrier">方案一：signal-pad barrier</h2>
+<p>第一版用显式屏障。先说清楚要同步什么：kernel 一启动，每张卡的每个
+program 立刻就要去读<strong>其他卡</strong>对称 buffer
+里的对应行，但对方那张卡可能还没把数据写进去——所以必须有一扇门：确认「所有卡都写完了」之后才放行去读。</p>
+<p>这扇门就是 signal pad。symmetric memory 除了数据 buffer，每个 rank
+还带一块小的对称内存，专门用来做同步——可以把它理解成一块所有卡都能读写的<strong>记分板</strong>，布局和约定如下：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs text">每个 rank 一块 pad：uint32[num_blocks, world_size]<br>（num_blocks 就是这次 launch 的 program 数，一个 program 一行，即 M）<br><br>约定：我 pad 上的槽位 [b, r] == 1   ⟺   「rank r 的 block b 已经报到」<br></code></pre></td></tr></table></figure>
+<p>按 block 分行的原因是：每个 program
+只读写自己那一行，槽位互不冲突，也不用让全 grid 的 program 齐步走。</p>
+<p>屏障协议只有两步：</p>
+<p><strong>第 1 步 arrive：</strong> rank r 的 block b
+向<strong>全部</strong> <code>world_size</code> 块 pad 写入
+1，写的位置是每块 pad 上的槽位 <code>[b, r]</code>——即每个 rank
+只写「自己那一列」，但写遍所有
+pad（<code>atomic_xchg</code>，release）。</p>
+<p><strong>第 2 步 wait：</strong> rank r 的 block b 自旋读<strong>自己
+pad</strong> 的第 b 行（<code>atomic_cas</code>，acquire），直到
+<code>world_size</code> 个槽位全为 1——即所有 rank 的 block b 都完成了第
+1 步，放行。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs text">world_size = 4，rank 0 视角（pad 初始全 0）<br><br>  arrive（远端写）：rank r 把 1 写进全部 4 块 pad 的槽位 [b, r]<br><br>    rank 0 ──► 各 pad 的 [b,0]      rank 2 ──► 各 pad 的 [b,2]<br>    rank 1 ──► 各 pad 的 [b,1]      rank 3 ──► 各 pad 的 [b,3]<br><br>  wait（本地读）：rank 0 自旋读自己 pad 的第 b 行<br><br>    rank 0 的 pad[b, :] = [ 1  1  0  1 ]   ← [b,2] 还是 0：rank 2 没到，继续自旋<br>                          [ 1  1  1  1 ]   ← 全为 1：放行<br></code></pre></td></tr></table></figure>
+<p>写远端、读本地的原因：写是每个 block 只做一次的
+<code>world_size</code>
+次远端写；而等待时的自旋要反复读，放在本地内存上就不必跨 NVLink
+空转。</p>
+<p>为什么看到 flag 就等于数据写好了？两条 memory order 缺一不可：写 1 用
+<strong>release</strong>，保证它对别人可见时、排在它前面的数据写入也可见；读
+flag 用 <strong>acquire</strong>，保证看到 1
+之后再发起的读不会拿到旧值；<code>scope="sys"</code> 让这个排序关系跨
+GPU 成立。合起来就是跨卡的 happens-before：<strong>看到 flag=1 ⟹
+对方的数据已经写完</strong>。barrier 之后，每个 program 把自己这一行从
+<code>world_size</code> 个 peer buffer 里读出来、fp32 求和，接着算
+residual + RMSNorm。</p>
+<p>落到代码：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-meta">@triton.jit</span><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">_blockwise_barrier</span>(<span class="hljs-params">signal_pad_ptrs, rank, world_size: tl.constexpr, sem: tl.constexpr</span>):<br>    block_id = tl.program_id(<span class="hljs-number">0</span>)   <span class="hljs-comment"># 省略多维展开</span><br>    remote = tl.arange(<span class="hljs-number">0</span>, world_size)<br>    ...<br>    send_addr = remote_pad + block_id * world_size + rank   <span class="hljs-comment"># 写到每个 peer 的 [block, my_rank]</span><br>    wait_addr = local_pad  + block_id * world_size + remote  <span class="hljs-comment"># 等自己的 [block, every_peer]</span><br><br>    ones  = tl.full((world_size,), <span class="hljs-number">1</span>, tl.int32)<br>    zeros = tl.full((world_size,), <span class="hljs-number">0</span>, tl.int32)<br>    tl.atomic_xchg(send_addr, ones, sem=sem, scope=<span class="hljs-string">&quot;sys&quot;</span>)<br><br>    arrived = zeros<br>    <span class="hljs-keyword">while</span> tl.<span class="hljs-built_in">sum</span>(arrived) != world_size:<br>        got = tl.atomic_cas(wait_addr, ones, zeros, sem=sem, scope=<span class="hljs-string">&quot;sys&quot;</span>)<br>        arrived = tl.maximum(arrived, got)<br></code></pre></td></tr></table></figure>
+<p>这里藏了个坑，笔者第一版就死锁了。最初等待循环是直接对<strong>每一轮</strong>
+CAS 的返回值求和：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-keyword">while</span> tl.<span class="hljs-built_in">sum</span>(tl.atomic_cas(wait_addr, ones, zeros, ...)) != world_size:<br>    <span class="hljs-keyword">pass</span><br></code></pre></td></tr></table></figure>
+<p>问题出在 <code>atomic_cas(ptr, 1, 0)</code> 会<strong>消费</strong>
+flag——看到 1 就顺手写回 0。消费是故意的：pad 清干净了，下一次 launch
+才能直接复用。但「每轮求和」只在所有 peer
+恰好同一轮内凑齐时才对；只要到达有先后，先到的 flag
+在某一轮被吃掉，后面的轮次里它就永远缺席：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs text">轮次   pad 槽位 [r0 r1 r2 r3]   本轮 CAS 看到     本轮 sum<br> 1     [ 1  0  0  0 ]          [ 1  0  0  0 ]      1   ← r0 的 flag 被吃掉（槽回 0）<br> 2     [ 0  1  0  0 ]          [ 0  1  0  0 ]      1   ← r0 的到达已被「遗忘」<br> 3     [ 0  0  1  0 ]          [ 0  0  1  0 ]      1<br> 4     [ 0  0  0  1 ]          [ 0  0  0  1 ]      1   ← 其实四卡都到过了<br> 5     [ 0  0  0  0 ]          [ 0  0  0  0 ]      0   ← 永远凑不齐 4：死锁<br></code></pre></td></tr></table></figure>
+<p>（这个 bug 阴险在它<strong>有时能跑过</strong>：各 peer
+到达得足够集中时，一轮就能 sum 出 4。）</p>
+<p>修复办法就是代码里的 <code>arrived</code> 数组：每个 lane 把历轮观测
+<strong>OR 累积</strong>——槽位一旦被看到过 1 就永久记住，CAS 照常消费清
+pad。既不丢到达记录，pad 也还是干净的。</p>
+<p>这一版简单、鲁棒——同步状态（signal pad）和数据完全解耦，所以每次
+launch 都是无状态的，bf16 / fp16 / fp32 都能直接跑。</p>
+<h2 id="方案二lamport负零轮询">方案二：Lamport（负零轮询）</h2>
+<p>方案一里的屏障，本质上是「全员到齐再开工」：每个 block 要等最慢的那个
+peer 把 flag 写过来，才能开始读数据。对 latency-bound 的小消息，这一趟
+release/acquire round-trip 就是延迟的大头。flashinfer 的 one-shot
+走的是另一条路：<strong>完全不要屏障，同步信息由数据本身携带</strong>——读者看到数据的值变了，就知道它到了。笔者也照着实现了一版，几个关键点：</p>
+<p><strong>1. 两个 bf16 打包进一个 u32。</strong>
+这是整个方案能成立的地基。4 字节对齐的 load/store
+是原子的，所以读者要么看到整包旧值、要么整包新值，绝不会读到「一半旧一半新」。</p>
+<p><strong>2. 哨兵 + scrub。</strong> comm buffer 预先填满哨兵字
+<code>0x80008000</code>（两个 bf16 的
+<code>-0.0</code>）。写数据前把真实数据里的
+<code>-0.0</code>（<code>0x8000</code>）抹成
+<code>+0.0</code>（<code>0x0000</code>），这样真实数据永远不可能等于哨兵。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-meta">@triton.jit</span><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">_pack_pairs_scrubbed</span>(<span class="hljs-params">vals</span>):<br>    v_lo, v_hi = tl.split(vals.reshape([vals.shape[<span class="hljs-number">0</span>] // <span class="hljs-number">2</span>, <span class="hljs-number">2</span>]))<br>    lo16 = v_lo.to(tl.uint16, bitcast=<span class="hljs-literal">True</span>)<br>    hi16 = v_hi.to(tl.uint16, bitcast=<span class="hljs-literal">True</span>)<br>    lo16 = tl.where(lo16 == <span class="hljs-number">0x8000</span>, tl.full(lo16.shape, <span class="hljs-number">0</span>, tl.uint16), lo16)<br>    hi16 = tl.where(hi16 == <span class="hljs-number">0x8000</span>, tl.full(hi16.shape, <span class="hljs-number">0</span>, tl.uint16), hi16)<br>    <span class="hljs-keyword">return</span> lo16.to(tl.uint32) | (hi16.to(tl.uint32) &lt;&lt; <span class="hljs-number">16</span>)<br></code></pre></td></tr></table></figure>
+<p><strong>3. push + poll。</strong> 每张卡把自己 scrub+pack
+过的行写进<strong>每个 peer</strong> 的 buffer，然后
+<code>volatile</code>-load 自己的 buffer，逐 slab
+自旋，直到那个字不再是哨兵——这个「跳变」本身就是「数据到了」的信号。没有
+atomic、没有屏障，哪个 peer 的数据先到就先算。代价是写放大：每行要 push
+<code>world_size</code> 份，这个伏笔到 benchmark 再收。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-meta">@triton.jit</span><br><span class="hljs-keyword">def</span> <span class="hljs-title function_">_poll_pairs</span>(<span class="hljs-params">ptr_u32, offs, mask</span>):<br>    v = tl.load(ptr_u32 + offs, mask=mask, other=<span class="hljs-number">0</span>, volatile=<span class="hljs-literal">True</span>)<br>    <span class="hljs-keyword">while</span> tl.<span class="hljs-built_in">max</span>(tl.where(mask &amp; (v == <span class="hljs-number">0x80008000</span>), <span class="hljs-number">1</span>, <span class="hljs-number">0</span>)) == <span class="hljs-number">1</span>:<br>        v = tl.load(ptr_u32 + offs, mask=mask, other=<span class="hljs-number">0</span>, volatile=<span class="hljs-literal">True</span>)<br>    <span class="hljs-keyword">return</span> v<br></code></pre></td></tr></table></figure>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><code class="hljs text">Lamport push + poll 示意（rank 0 的某一行）<br><br>  rank 0 的 bf16 行          peer 0 的 comm buffer（预填哨兵 0x80008000）<br>       │                              │<br>       ▼                              ▼<br>  ┌──────────┐    scrub + pack     ┌──────────────┐<br>  │  h[0]    │ ─────u32[0]────────►│  0x80008000  │ ◄── volatile load 自旋<br>  │  h[1]    │ ─────u32[0]────────►│  0x80008000  │     直到不再是哨兵<br>  │  h[2]    │ ─────u32[1]────────►│  0x80008000  │<br>  │  h[3]    │ ─────u32[1]────────►│  0x80008000  │<br>  └──────────┘                     └──────────────┘<br>       │<br>       ├─────────u32[*]─────────► peer 1 buffer<br>       ├─────────u32[*]─────────► peer 2 buffer<br>       └─────────u32[*]─────────► peer 3 buffer<br><br>  哨兵值 0x80008000 = 两个 bf16 -0.0，真实数据 scrub 后不可能等于它<br>  读到非哨兵 → 数据已到，拆包求和<br></code></pre></td></tr></table></figure>
+<p>注意这里 <code>volatile=True</code> 是必须的，否则编译器会把这个 load
+提到循环外，自旋就永远读的是同一个寄存器值。</p>
+<p><strong>4. 三缓冲防 ABA。</strong> 由于 buffer 要跨 launch
+复用，如果这次的哨兵还没来得及被下一次的写覆盖……总之直接复用同一块会出竞态。flashinfer
+的做法是三缓冲：<code>region = flag % 3</code>，本次用一块、清另一块，<code>flag</code>
+每次 launch 递增。</p>
+<p>关于 Lamport 这个名字：它来自 Leslie Lamport（对，就是
+LaTeX、Paxos、逻辑时钟那位）关于<strong>无锁共享内存通信</strong>的工作（<em>Concurrent
+Reading and Writing</em>,
+1977）——不用锁、不用特殊原子指令，纯靠读写和单字原子性来协调，数据的值本身就是信号。负零轮询正是这个思路的
+GPU 版。NVIDIA 的 TensorRT-LLM 把这种一发式 all-reduce 命名为
+Lamport，flashinfer 又 vendor 了这套 kernel，名字就沿用下来了。</p>
+<h2 id="benchmark">Benchmark</h2>
+<p>这两个算子都是 launch-bound 的，eager 下测出来大头全是 Python/launch
+开销，看不到真实的 device 延迟。所以笔者用 CUDA graph 把 host
+端开销抹掉之后再测。4×GB200，bf16，每次调用的延迟（µs）：</p>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: right;">M</th>
+<th style="text-align: right;">N</th>
+<th style="text-align: right;">lamport</th>
+<th style="text-align: right;">barrier</th>
+<th style="text-align: right;">nccl+norm</th>
+<th style="text-align: right;">lam vs base</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2048</td>
+<td style="text-align: right;">7.32</td>
+<td style="text-align: right;">8.77</td>
+<td style="text-align: right;">39.31</td>
+<td style="text-align: right;">5.37×</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">8</td>
+<td style="text-align: right;">2048</td>
+<td style="text-align: right;">7.52</td>
+<td style="text-align: right;">12.23</td>
+<td style="text-align: right;">43.41</td>
+<td style="text-align: right;">5.77×</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">128</td>
+<td style="text-align: right;">2048</td>
+<td style="text-align: right;">9.67</td>
+<td style="text-align: right;">17.62</td>
+<td style="text-align: right;">47.80</td>
+<td style="text-align: right;">4.94×</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">4096</td>
+<td style="text-align: right;">8.66</td>
+<td style="text-align: right;">9.16</td>
+<td style="text-align: right;">39.86</td>
+<td style="text-align: right;">4.60×</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">128</td>
+<td style="text-align: right;">4096</td>
+<td style="text-align: right;">12.78</td>
+<td style="text-align: right;">19.21</td>
+<td style="text-align: right;">55.38</td>
+<td style="text-align: right;">4.33×</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">8192</td>
+<td style="text-align: right;">10.74</td>
+<td style="text-align: right;">11.61</td>
+<td style="text-align: right;">41.73</td>
+<td style="text-align: right;">3.89×</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">128</td>
+<td style="text-align: right;">8192</td>
+<td style="text-align: right;">18.74</td>
+<td style="text-align: right;">27.10</td>
+<td style="text-align: right;">57.93</td>
+<td style="text-align: right;">3.09×</td>
+</tr>
+</tbody>
+</table>
+<p>几个观察，正好回收前文的伏笔：</p>
+<ul>
+<li><strong>和 NCCL + eager 比快 3~6
+倍</strong>，对应背景里算的那笔账：省掉的就是两次独立 launch、NCCL
+的多跳和中间那趟 HBM 往返。batch 越小固定开销占比越大，加速比越高。</li>
+<li><strong>Lamport 处处快过
+barrier</strong>，小尺寸差距最大——这就是方案二开头说的，省掉的那趟屏障
+round-trip 在 latency-bound 区间最值钱。</li>
+<li><strong>大尺寸差距收窄</strong>——方案二 push + poll
+的写放大开始还债：Lamport 要 push 给所有 peer，写
+<code>world_size×</code> 的数据，变成 bandwidth-bound
+之后带宽开销追上来了。</li>
+</ul>
+<h2 id="总结">总结</h2>
+<ul>
+<li>用 symmetric memory 让各卡直接读对方显存，一个 Triton kernel 就能把
+all-reduce + residual + RMSNorm 全做完，small batch 下比 NCCL + eager
+快好几倍。</li>
+<li>同步有两条路：<strong>signal-pad
+barrier</strong>（简单鲁棒、支持任意 dtype）和 <strong>Lamport
+负零轮询</strong>（无屏障、更低延迟，但只支持 bf16，需要三缓冲 +
+scrub）。</li>
+</ul>
+<hr />
+<p>参考资料：</p>
+<ul>
+<li>flashinfer
+<code>include/flashinfer/comm/trtllm_allreduce_fusion.cuh</code></li>
+<li><a
+target="_blank" rel="noopener" href="https://docs.pytorch.org/docs/stable/distributed.html#symmetric-memory">PyTorch
+Symmetric Memory</a></li>
+<li>Leslie Lamport, <em>Concurrent Reading and Writing</em>, CACM
+1977</li>
+</ul>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+</div>
+
+
+              
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/p/2751964952/" title="DeepSeek V4 结构速览">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">DeepSeek V4 结构速览</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/p/507857819/" title="ulysses-parallel">
+                        <span class="hidden-mobile">ulysses-parallel</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+    <div class="statistics">
+  
+  
+
+  
+    
+      <span id="leancloud-site-pv-container" style="display: none">
+        总访问量 
+        <span id="leancloud-site-pv"></span>
+         次
+      </span>
+    
+    
+      <span id="leancloud-site-uv-container" style="display: none">
+        总访客数 
+        <span id="leancloud-site-uv"></span>
+         人
+      </span>
+    
+    
+
+  
+
+</div>
+
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    function isExpandAllEnabled() {
+      return CONFIG.toc && CONFIG.toc.expand_all === true;
+    }
+    function expandAllToc() {
+      if (!isExpandAllEnabled()) { return; }
+      jQuery('#toc-body .tocbot-is-collapsed').removeClass('tocbot-is-collapsed');
+    }
+    function updateTocToggle($li, $childList) {
+      var $toggle = $li.children('.toc-toggle');
+      if ($toggle.length === 0) { return; }
+      var collapsed = $childList.hasClass('tocbot-is-collapsed');
+      $toggle
+        .toggleClass('toc-toggle-collapsed', collapsed)
+        .toggleClass('toc-toggle-expanded', !collapsed);
+    }
+    function bindTocToggle() {
+      if (!isExpandAllEnabled()) { return; }
+      jQuery('#toc-body .toc-list-item').each(function() {
+        var $li = jQuery(this);
+        var $childList = $li.children('ol');
+        if ($childList.length === 0) {
+          if ($li.children('.toc-toggle').length === 0) {
+            $li.prepend('<span class="toc-toggle toc-toggle-placeholder" aria-hidden="true">›</span>');
+          }
+          return;
+        }
+
+        if ($li.children('.toc-toggle').length === 0) {
+          $li.prepend('<span class="toc-toggle toc-toggle-expanded" aria-hidden="true">›</span>');
+        }
+        updateTocToggle($li, $childList);
+      });
+      jQuery('#toc-body').off('click.tocToggle').on('click.tocToggle', '.toc-toggle', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var $li = jQuery(this).parent('.toc-list-item');
+        var $childList = $li.children('ol');
+        if ($childList.length === 0) { return; }
+        $childList.toggleClass('tocbot-is-collapsed');
+        updateTocToggle($li, $childList);
+      });
+      if (!window.__tocToggleObserver) {
+        window.__tocToggleObserver = new MutationObserver(function(mutations) {
+          mutations.forEach(function(mutation) {
+            if (mutation.type !== 'attributes' || mutation.attributeName !== 'class') { return; }
+            var $list = jQuery(mutation.target);
+            var $li = $list.parent('.toc-list-item');
+            if ($li.length === 0) { return; }
+            updateTocToggle($li, $list);
+          });
+        });
+        jQuery('#toc-body ol').each(function() {
+          window.__tocToggleObserver.observe(this, { attributes: true });
+        });
+      }
+    }
+    var tocConfig = Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc);
+    if (isExpandAllEnabled()) {
+      tocConfig.collapseDepth = 6;
+    }
+    window.tocbot.init(tocConfig);
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+    expandAllToc();
+    bindTocToggle();
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+        expandAllToc();
+        bindTocToggle();
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.10/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script defer src="/js/leancloud.js" ></script>
+
+  <script defer src="/js/openkounter.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>
