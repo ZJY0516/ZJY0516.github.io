@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Single cache: one KVCacheTensor is enough</title>
+<style>
+  :root {
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --bg: #ffffff; --panel: #ffffff; --line: #e6e1da;
+    --text: #23201e; --text2: #605b56;
+    --blue: #4d7ba6; --blue-text: #3e6890;   --l0: rgba(77, 123, 166, 0.16);
+    --amber: #b5873a; --amber-text: #8a6420; --l1: rgba(181, 135, 58, 0.18);
+    --plum: #8a7a9e; --plum-text: #6e5f82;   --l2: rgba(138, 122, 158, 0.18);
+    --green: #6a8a5e; --green-fill: rgba(106, 138, 94, 0.20);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #18181a; --panel: #201d1a; --line: #3a352f;
+      --text: #f1eeea; --text2: #a39d95;
+      --blue: #7ba4cc; --blue-text: #9dbbdd;   --l0: rgba(123, 164, 204, 0.20);
+      --amber: #cfa05a; --amber-text: #ddb87e; --l1: rgba(207, 160, 90, 0.20);
+      --plum: #ab9cc2; --plum-text: #c3b6d6;   --l2: rgba(171, 156, 194, 0.20);
+      --green: #8aa87e; --green-fill: rgba(138, 168, 126, 0.25);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, system-ui, "Segoe UI", Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.6;
+    padding: 16px; max-width: 980px; margin: 0 auto;
+  }
+  h3 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  h4 {
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--text2);
+    margin: 14px 0 6px; padding-top: 10px; border-top: 1px solid var(--line);
+  }
+  .note { color: var(--text2); font-size: 14.5px; margin: 2px 0 8px; }
+  code { font-family: var(--mono); font-size: 14px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 10px 14px; margin: 10px 0 14px; }
+  .ctrl { display: flex; align-items: center; gap: 6px; font-size: 15px; }
+  .ctrl .lbl {
+    font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text2);
+  }
+  select, input[type=number] {
+    font-family: var(--mono); font-size: 14px; padding: 4px 8px; border: 1px solid var(--line);
+    border-radius: 3px; background: var(--bg); color: var(--text);
+  }
+  button {
+    font-family: var(--mono); font-size: 13.5px; padding: 4px 12px; border: 1px solid var(--line);
+    border-radius: 3px; background: var(--bg); cursor: pointer; color: var(--text);
+    transition: background 0.15s;
+  }
+  button:hover { background: var(--line); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 4px 0 6px; }
+  th, td { border: 1px solid var(--line); padding: 5px 9px; text-align: right; font-variant-numeric: tabular-nums; }
+  th {
+    background: var(--panel); color: var(--text2); font-weight: 600; text-align: center;
+    font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.06em;
+  }
+  td { font-family: var(--mono); font-size: 14px; }
+  td.spec { text-align: left; font-weight: 600; font-family: -apple-system, system-ui, "Segoe UI", Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; border: 1px solid; }
+  .d-0 { background: var(--l0); border-color: var(--blue); }
+  .d-1 { background: var(--l1); border-color: var(--amber); }
+  .d-2 { background: var(--l2); border-color: var(--plum); }
+  #mapWrap { position: relative; }
+  svg { display: block; width: 100%; height: auto; }
+  svg text { font-family: var(--mono); }
+  .seg { stroke-width: 0.8; transition: stroke-width 0.12s; }
+  .seg.s-0 { fill: var(--l0); stroke: var(--blue); }
+  .seg.s-1 { fill: var(--l1); stroke: var(--amber); }
+  .seg.s-2 { fill: var(--l2); stroke: var(--plum); }
+  .seg:hover { stroke-width: 2; }
+  .seg.hit { stroke: var(--green); stroke-width: 2; }
+  .seg-text.t-0 { fill: var(--blue-text); }
+  .seg-text.t-1 { fill: var(--amber-text); }
+  .seg-text.t-2 { fill: var(--plum-text); }
+  .tick { stroke: var(--text2); stroke-width: 0.8; }
+  .grp { fill: var(--text2); }
+  .marker { fill: var(--green-fill); stroke: var(--green); stroke-width: 1.5; }
+  .marker-text { fill: var(--green); }
+  #hoverTip { font-family: var(--mono); font-size: 14px; color: var(--text2); min-height: 22px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 14px; color: var(--text2); margin: 4px 0 0; }
+  .legend::before {
+    content: "LEGEND"; font-family: var(--mono); font-size: 11.5px;
+    letter-spacing: 0.1em; color: var(--text2); align-self: center;
+  }
+  .lookup { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 12px 14px; margin-top: 8px; }
+  .lookup .row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-bottom: 8px; }
+  input[type=range] { width: 220px; accent-color: var(--blue); }
+  .chain { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 14.5px; background: var(--bg);
+    border: 1px solid var(--line); border-radius: 3px; padding: 8px 10px; margin: 6px 0; }
+  .chain b { color: var(--blue-text); }
+  .chain .k { color: var(--text2); }
+  .bt { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; font-size: 13.5px; margin: 4px 0; }
+  .bt .cell { font-family: var(--mono); border: 1px solid var(--line); border-radius: 3px; padding: 2px 7px; background: var(--bg); font-variant-numeric: tabular-nums; }
+  .bt .cell.hit { background: var(--green-fill); border-color: var(--green); font-weight: 700; }
+  .bt .cap {
+    font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text2); margin-right: 2px;
+  }
+  .summary { color: var(--text2); font-size: 14px; margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--line); }
+</style>
+</head>
+<body>
+
+<h3>Single cache</h3>
+<div class="note">
+  One cache type, one view (offset = 0). Block table maps logical → physical block <code>b</code>, nothing more.<br>
+  <code>addr = offset + l × layer_stride + b × block_stride + slot × row_width</code>
+</div>
+
+<div class="controls">
+  <div class="ctrl"><span class="lbl">layout</span>
+    <select id="selLayout">
+      <option value="LBNHC" selected>LBNHC (layer-outer)</option>
+      <option value="BLHNC">BLHNC (block-outer)</option>
+    </select>
+  </div>
+  <div class="ctrl"><span class="lbl">layers L</span>
+    <select id="selL"><option value="2" selected>2</option><option value="3">3</option></select>
+  </div>
+  <div class="ctrl"><span class="lbl">block_size</span>
+    <select id="selBs"><option value="16">16</option><option value="64" selected>64</option></select>
+  </div>
+  <div class="ctrl"><span class="lbl">num_blocks</span>
+    <select id="selNb"><option value="3" selected>3</option><option value="4">4</option><option value="8">8</option></select>
+  </div>
+  <div class="ctrl"><span class="lbl">scenario</span><span>MLA (compressed latent KV), row width 656 B/token</span></div>
+</div>
+
+<h4>KVCacheTensor params</h4>
+<div class="note" id="layoutDesc"></div>
+<table id="specTable">
+  <thead><tr>
+    <th>spec</th><th>offset</th><th>layer_stride</th><th>block_stride</th><th>row width</th><th>page size</th>
+  </tr></thead>
+  <tbody></tbody>
+</table>
+
+<h4>Memory map (flat byte array, to scale)</h4>
+<div class="note">Hover for byte range; green = selected token.</div>
+<div id="mapWrap"><svg id="map" viewBox="0 0 1000 96"></svg></div>
+<div id="hoverTip">&nbsp;</div>
+<div class="legend" id="legend"></div>
+
+<h4>Look up a token's address</h4>
+<div class="lookup">
+  <div class="row">
+    <div class="ctrl"><span class="lbl">token t</span>
+      <input type="range" id="rngT" min="0" max="191" value="130">
+      <input type="number" id="numT" min="0" max="191" value="130" style="width:80px">
+    </div>
+    <div class="ctrl"><span class="lbl">layer</span>
+      <select id="selLayer"></select>
+    </div>
+  </div>
+  <div class="bt" id="btRow"></div>
+  <div class="chain" id="chainSteps"></div>
+  <div class="chain" id="chainAddr"></div>
+</div>
+
+<div class="summary">
+  When all layers share one shape, one block table + one KVCacheTensor view (offset = 0) is all you need.
+  Multiple cache types sharing one block table — see below.
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---------- scenario constants ----------
+  var ROW = 656;          // row width, bytes per token
+  var LABEL = 'MLA (compressed latent KV)';
+
+  // ---------- state ----------
+  var state = {
+    layout: 'LBNHC',
+    layers: 2,
+    blockSize: 64,
+    numBlocks: 3,
+    token: 130,
+    layer: 1,            // selected layer index
+    blockTable: []       // logical block -> physical block
+  };
+
+  // ---------- helpers ----------
+  function fmt(n) { return n.toLocaleString('en-US'); }
+  function fmtB(n) {
+    if (n >= 1024 * 1024) return fmt(n) + ' B (' + (n / 1048576).toFixed(2) + ' MB)';
+    if (n >= 1024) return fmt(n) + ' B (' + (n / 1024).toFixed(1) + ' KB)';
+    return fmt(n) + ' B';
+  }
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  // initial block table: non-identity permutation [0,2,1,4,3,6,5,7], truncated/filled as needed
+  function initBlockTable(n) {
+    var base = [0, 2, 1, 4, 3, 6, 5, 7];
+    var seen = {}, res = [];
+    for (var i = 0; i < base.length && res.length < n; i++) {
+      if (base[i] < n && !seen[base[i]]) { res.push(base[i]); seen[base[i]] = 1; }
+    }
+    for (var k = 0; res.length < n; k++) {
+      if (!seen[k]) { res.push(k); seen[k] = 1; }
+    }
+    return res;
+  }
+
+  // ---------- core: single-KVCacheTensor stride params ----------
+  // returns { offset (always 0), layerStride, blockStride, row, page, totalBytes }
+  function computeParams() {
+    var bs = state.blockSize, nb = state.numBlocks, L = state.layers;
+    var page = bs * ROW;
+    var p = { offset: 0, row: ROW, page: page };
+    if (state.layout === 'LBNHC') {
+      // layer-outer: one contiguous region per layer
+      p.layerStride = page * nb;
+      p.blockStride = page;
+    } else {
+      // block-outer: each physical block packs [L0 | L1 | ...]
+      p.layerStride = page;
+      p.blockStride = L * page;
+    }
+    p.totalBytes = page * nb * L;
+    return p;
+  }
+
+  // start address of the page for layer l, physical block b
+  function pageStart(P, l, b) {
+    return P.offset + l * P.layerStride + b * P.blockStride;
+  }
+
+  // ---------- render: KVCacheTensor table ----------
+  function renderTable(P) {
+    var desc;
+    if (state.layout === 'LBNHC') {
+      desc = 'layer-outer: one contiguous region per layer <code>[ L0 blocks | L1 | ... ]</code>; ' +
+             '<code>layer_stride = page × num_blocks</code>, <code>block_stride = page</code>. offset = 0 always.';
+    } else {
+      desc = 'block-outer: each physical block (' + fmtB(P.blockStride) + ') packs <code>[ L0 | L1 | ... ]</code>; ' +
+             '<code>layer_stride = page</code>, <code>block_stride = L × page</code>. offset = 0 always.';
+    }
+    document.getElementById('layoutDesc').innerHTML = desc;
+
+    document.querySelector('#specTable tbody').innerHTML =
+      '<tr><td class="spec"><span class="dot d-0"></span>' + LABEL +
+      '</td><td>0</td><td>' + fmt(P.layerStride) + '</td><td>' + fmt(P.blockStride) +
+      '</td><td>' + fmt(P.row) + ' B</td><td>' + fmtB(P.page) + '</td></tr>';
+  }
+
+  // ---------- render: memory map ----------
+  // segment list [{l, b, start, end}], sorted by address
+  function buildSegments(P) {
+    var segs = [], nb = state.numBlocks, L = state.layers, l, b;
+    if (state.layout === 'LBNHC') {
+      for (l = 0; l < L; l++) {
+        for (b = 0; b < nb; b++) {
+          var st = pageStart(P, l, b);
+          segs.push({ l: l, b: b, start: st, end: st + P.page });
+        }
+      }
+    } else {
+      for (b = 0; b < nb; b++) {
+        for (l = 0; l < L; l++) {
+          var st2 = pageStart(P, l, b);
+          segs.push({ l: l, b: b, start: st2, end: st2 + P.page });
+        }
+      }
+    }
+    segs.sort(function (x, y) { return x.start - y.start; });
+    return segs;
+  }
+
+  function renderMap(P, hl) {
+    var segs = buildSegments(P);
+    var T = P.totalBytes, W = 1000, barY = 6, barH = 46, lblY = 68, lblY2 = 84;
+    var html = '';
+
+    // page segments (colors via CSS classes, dark-mode aware)
+    segs.forEach(function (s, i) {
+      var x = s.start / T * W, w = (s.end - s.start) / T * W;
+      var isHit = hl && s.l === hl.l && s.b === hl.b;
+      html += '<rect class="seg s-' + s.l + (isHit ? ' hit' : '') +
+        '" data-i="' + i + '" x="' + x.toFixed(2) + '" y="' + barY + '" width="' +
+        Math.max(w, 0.5).toFixed(2) + '" height="' + barH + '"/>';
+      if (w >= 44) {
+        html += '<text class="seg-text t-' + s.l + '" x="' + (x + w / 2).toFixed(1) +
+          '" y="' + (barY + barH / 2 + 3.5) + '" font-size="12" text-anchor="middle" pointer-events="none">L' +
+          s.l + ' b' + s.b + '</text>';
+      }
+    });
+
+    // highlight the token's row (slot row inside the page; draw a marker bar if too narrow)
+    if (hl) {
+      var rx = (hl.pageStart + hl.slot * P.row) / T * W;
+      var rw = P.row / T * W;
+      var mx = rx, mw = Math.max(rw, 3);
+      if (mx + mw > W) mx = W - mw;
+      html += '<rect class="marker" x="' + mx.toFixed(2) + '" y="' + (barY - 3) + '" width="' + mw.toFixed(2) +
+        '" height="' + (barH + 6) + '" pointer-events="none"/>';
+      html += '<text class="marker-text" x="' + Math.min(Math.max(mx + mw / 2, 30), W - 30).toFixed(1) +
+        '" y="' + (barY - 5) + '" font-size="11.5" text-anchor="middle" pointer-events="none">t=' + state.token + '</text>';
+    }
+
+    // group labels below the bar
+    var nb = state.numBlocks, L = state.layers;
+    if (state.layout === 'LBNHC') {
+      for (var l = 0; l < L; l++) {
+        var xs = pageStart(P, l, 0) / T * W;
+        var xe = (pageStart(P, l, 0) + P.page * nb) / T * W;
+        html += '<line class="tick" x1="' + xs.toFixed(1) + '" y1="' + (barY + barH + 2) +
+          '" x2="' + xs.toFixed(1) + '" y2="' + (barY + barH + 6) + '"/>';
+        html += '<text class="grp" x="' + ((xs + xe) / 2).toFixed(1) + '" y="' + lblY +
+          '" font-size="11.5" text-anchor="middle">layer L' + l + '</text>';
+      }
+      html += '<text class="grp" x="2" y="' + lblY2 + '" font-size="11.5">layer-contiguous regions, blk 0..' + (nb - 1) + ' within each</text>';
+    } else {
+      for (var b = 0; b < nb; b++) {
+        var x0 = pageStart(P, 0, b) / T * W;
+        var x1 = (pageStart(P, 0, b) + P.blockStride) / T * W;
+        html += '<line class="tick" x1="' + x0.toFixed(1) + '" y1="' + (barY + barH + 2) +
+          '" x2="' + x0.toFixed(1) + '" y2="' + (barY + barH + 6) + '"/>';
+        html += '<text class="grp" x="' + ((x0 + x1) / 2).toFixed(1) + '" y="' + lblY +
+          '" font-size="11.5" text-anchor="middle">blk ' + b + '</text>';
+      }
+      var inner = 'L0 | L1';
+      if (L > 2) inner += ' | L2';
+      html += '<text class="grp" x="2" y="' + lblY2 + '" font-size="11.5">each block packs ' + inner + '</text>';
+    }
+    html += '<text class="grp" x="' + W + '" y="' + lblY2 + '" font-size="11.5" text-anchor="end">total ' + fmtB(T) + '</text>';
+
+    var svg = document.getElementById('map');
+    svg.innerHTML = html;
+    svg._segs = segs;
+  }
+
+  // hover tip
+  document.getElementById('map').addEventListener('mousemove', function (e) {
+    var tip = document.getElementById('hoverTip');
+    var i = e.target.getAttribute && e.target.getAttribute('data-i');
+    if (i === null || i === undefined) { tip.innerHTML = '&nbsp;'; return; }
+    var s = e.target.ownerSVGElement._segs[+i];
+    tip.textContent = 'L' + s.l + ' · phys blk ' + s.b +
+      ' · [' + fmt(s.start) + ', ' + fmt(s.end) + ') · ' + fmtB(s.end - s.start);
+  });
+  document.getElementById('map').addEventListener('mouseleave', function () {
+    document.getElementById('hoverTip').innerHTML = '&nbsp;';
+  });
+
+  // ---------- render: layer select & legend (rebuilt when L changes) ----------
+  function renderLayerControls() {
+    var sel = document.getElementById('selLayer');
+    var html = '';
+    for (var l = 0; l < state.layers; l++) {
+      html += '<option value="' + l + '"' + (l === state.layer ? ' selected' : '') + '>L' + l + '</option>';
+    }
+    sel.innerHTML = html;
+
+    var lg = '';
+    for (var k = 0; k < state.layers; k++) {
+      lg += '<span><span class="dot d-' + k + '"></span>L' + k + '</span>';
+    }
+    document.getElementById('legend').innerHTML = lg;
+  }
+
+  // ---------- render: token lookup ----------
+  function renderLookup(P) {
+    var bs = state.blockSize;
+    var maxT = bs * state.numBlocks - 1;
+    if (state.token > maxT) state.token = maxT;
+    document.getElementById('rngT').max = maxT;
+    document.getElementById('numT').max = maxT;
+    document.getElementById('rngT').value = state.token;
+    document.getElementById('numT').value = state.token;
+
+    var t = state.token;
+    var lb = Math.floor(t / bs);          // logical block
+    var b = state.blockTable[lb];         // physical block
+    var slot = t % bs;
+    var slotMapping = b * bs + slot;
+    var l = state.layer;
+
+    // block table display
+    var btHtml = '<span class="cap">block table (logical → physical)</span>';
+    for (var i = 0; i < state.blockTable.length; i++) {
+      btHtml += '<span class="cell' + (i === lb ? ' hit' : '') + '">' + i + '→' + state.blockTable[i] + '</span>';
+    }
+    btHtml += '<button id="btnShuffle" style="margin-left:8px">shuffle</button>';
+    document.getElementById('btRow').innerHTML = btHtml;
+    document.getElementById('btnShuffle').onclick = function () {
+      shuffle(state.blockTable); renderAll();
+    };
+
+    // computation chain
+    document.getElementById('chainSteps').innerHTML =
+      '<span class="k">lb</span> = t // block_size = ' + t + ' // ' + bs + ' = <b>' + lb + '</b> · ' +
+      '<span class="k">b</span> = block_table[' + lb + '] = <b>' + b + '</b> · ' +
+      '<span class="k">slot</span> = t % block_size = ' + t + ' % ' + bs + ' = <b>' + slot + '</b> · ' +
+      '<span class="k">slot_mapping</span> = b*bs + slot = ' + b + '*' + bs + ' + ' + slot +
+      ' = <b>' + slotMapping + '</b> (layer-agnostic)';
+
+    // address formula
+    var termL = l * P.layerStride, termB = b * P.blockStride, termS = slot * P.row;
+    var addr = P.offset + termL + termB + termS;
+    document.getElementById('chainAddr').innerHTML =
+      '<span class="k">addr(L' + l + ')</span> = offset + l*layer_stride + b*block_stride + slot*row_width<br>' +
+      '= 0 + ' + l + '*' + fmt(P.layerStride) + ' + ' + b + '*' + fmt(P.blockStride) +
+      ' + ' + slot + '*' + fmt(P.row) + '<br>= 0 + ' + fmt(termL) + ' + ' + fmt(termB) +
+      ' + ' + fmt(termS) + ' = <b>' + fmt(addr) + '</b> (' + fmtB(addr) + ')';
+
+    return { l: l, b: b, slot: slot, pageStart: pageStart(P, l, b) };
+  }
+
+  // ---------- render all ----------
+  function renderAll() {
+    var P = computeParams();
+    renderTable(P);
+    renderLayerControls();
+    var hl = renderLookup(P);
+    renderMap(P, hl);
+    reportHeight();
+  }
+
+  // ---------- iframe auto-height reporting ----------
+  // the parent page listens for { type: 'vllm-embed-resize', height: h } messages to resize the iframe.
+  // 50ms debounce, no resend when height is unchanged, skipped when opened standalone (not in an iframe).
+  var _lastH = -1, _hTimer = null;
+  function reportHeight() {
+    if (window.parent === window) return;
+    if (_hTimer) return;
+    _hTimer = setTimeout(function () {
+      _hTimer = null;
+      var h = document.documentElement.scrollHeight;
+      if (h !== _lastH) {
+        _lastH = h;
+        window.parent.postMessage({ type: 'vllm-embed-resize', height: h }, '*');
+      }
+    }, 50);
+  }
+  window.addEventListener('resize', reportHeight);
+  window.addEventListener('load', reportHeight);
+
+  // ---------- events ----------
+  document.getElementById('selLayout').onchange = function () { state.layout = this.value; renderAll(); };
+  document.getElementById('selL').onchange = function () {
+    state.layers = +this.value;
+    if (state.layer >= state.layers) state.layer = state.layers - 1;
+    renderAll();
+  };
+  document.getElementById('selBs').onchange = function () {
+    state.blockSize = +this.value;
+    state.blockTable = initBlockTable(state.numBlocks);
+    renderAll();
+  };
+  document.getElementById('selNb').onchange = function () {
+    state.numBlocks = +this.value;
+    state.blockTable = initBlockTable(state.numBlocks);
+    renderAll();
+  };
+  document.getElementById('selLayer').onchange = function () { state.layer = +this.value; renderAll(); };
+  document.getElementById('rngT').oninput = function () { state.token = +this.value; renderAll(); };
+  document.getElementById('numT').onchange = function () {
+    var v = +this.value;
+    if (isNaN(v)) v = 0;
+    state.token = Math.max(0, Math.min(v, state.blockSize * state.numBlocks - 1));
+    renderAll();
+  };
+
+  // ---------- init ----------
+  state.blockTable = initBlockTable(state.numBlocks);
+  renderAll();
+})();
+</script>
+</body>
+</html>

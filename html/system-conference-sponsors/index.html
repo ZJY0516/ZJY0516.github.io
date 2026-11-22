@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>从工业实验室到 AI 集群｜系统会议赞助图景</title>
+<style>
+  :root {
+    --paper: #f3f1eb; --sheet: #faf9f5; --white: #fff;
+    --ink: #172522; --muted: #65716b; --line: #d4d7cf; --soft: #e9ece5;
+    --accent: #df6848; --hardware: #263d38; --infra: #718f82; --platform: #d1a34d; --data: #df6848;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--paper); }
+  body {
+    margin: 0; color: var(--ink); background: var(--paper);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.6;
+  }
+  button, a { font: inherit; }
+  a { color: inherit; }
+  .report { max-width: 1220px; margin: 0 auto; background: var(--sheet); }
+  .hero { padding: 46px 48px 0; color: #f6f4ed; background: var(--ink); }
+  .eyebrow, .fig-no, .metric-label, .chart-kicker, .method-title {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    text-transform: uppercase; letter-spacing: .13em;
+  }
+  .eyebrow { display: flex; justify-content: space-between; gap: 20px; color: #b9c5bc; font-size: 11px; }
+  .hero h1 {
+    max-width: 820px; margin: 40px 0 18px; font-family: "Songti SC", "Noto Serif CJK SC", Georgia, serif;
+    font-size: clamp(40px, 5.8vw, 70px); font-weight: 600; line-height: 1.12; letter-spacing: -.045em;
+  }
+  .hero h1 em { color: #ef8b67; font-style: normal; }
+  .hero-deck { max-width: 680px; margin: 0; color: #cad2cc; font-size: 17px; line-height: 1.8; }
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 40px; border-top: 1px solid #52605a; }
+  .metric { padding: 22px 18px 24px 0; }
+  .metric + .metric { padding-left: 22px; border-left: 1px solid #52605a; }
+  .metric-value { display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 30px; line-height: 1.1; }
+  .metric-label { display: block; margin-top: 7px; color: #aebbb2; font-size: 9px; }
+  main { padding: 42px 48px 36px; }
+  .executive { display: grid; grid-template-columns: 70px 1fr; margin-bottom: 48px; }
+  .executive-label { color: var(--accent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; letter-spacing: .12em; }
+  .executive p { max-width: 830px; margin: 0; font-family: "Songti SC", Georgia, serif; font-size: 23px; line-height: 1.65; }
+  .figure { margin: 0 0 48px; }
+  .figure-head { display: grid; grid-template-columns: 70px 1fr; margin-bottom: 18px; }
+  .fig-no { padding-top: 5px; color: var(--accent); font-size: 11px; }
+  .figure h2 { margin: 0; font-family: "Songti SC", Georgia, serif; font-size: 27px; font-weight: 600; line-height: 1.35; letter-spacing: -.02em; }
+  .standfirst { max-width: 790px; margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+  .chart { border-top: 2px solid var(--ink); border-bottom: 1px solid var(--line); background: var(--white); }
+  .chart-kicker { padding: 14px 18px 10px; color: var(--muted); font-size: 9px; }
+  .chart-note { display: flex; justify-content: space-between; gap: 20px; padding: 11px 0 0; color: var(--muted); font-size: 11px; }
+  .chart-note a { text-underline-offset: 3px; }
+
+  .matrix-scroll { overflow-x: auto; padding: 0 18px 18px; }
+  .matrix { min-width: 1400px; }
+  .matrix-row { display: grid; grid-template-columns: 155px repeat(var(--year-count), minmax(42px, 1fr)) 42px; align-items: center; min-height: 36px; }
+  .matrix-row:not(.matrix-header) { border-top: 1px solid #edf0e9; }
+  .matrix-header { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; }
+  .matrix-company { padding-right: 12px; font-size: 12px; font-weight: 600; }
+  .matrix-year { text-align: center; transform: rotate(-45deg); transform-origin: center; height: 30px; }
+  .matrix-cell { display: flex; justify-content: center; align-items: center; height: 26px; border-left: 1px solid #f0f1ec; }
+  .matrix-mark { display: flex; align-items: center; justify-content: center; width: 24px; height: 20px; color: var(--white); background: var(--ink); text-decoration: none; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8px; line-height: 1; }
+  .matrix-mark:hover { background: var(--accent); }
+  .matrix-count { text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+  .matrix-key { display: flex; flex-wrap: wrap; gap: 15px; padding: 0 18px 15px; color: var(--muted); font-size: 10px; }
+  .matrix-key b { color: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  .two-charts { display: grid; grid-template-columns: 1.08fr .92fr; }
+  .chart-block { padding: 18px 22px 22px; }
+  .chart-block + .chart-block { border-left: 1px solid var(--line); }
+  .chart-block h3 { margin: 0 0 4px; font-size: 14px; }
+  .chart-block .sub { margin: 0 0 20px; color: var(--muted); font-size: 11px; }
+  .mix-row { display: grid; grid-template-columns: 54px 1fr 42px; align-items: center; gap: 10px; margin: 18px 0; }
+  .mix-year { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; font-weight: 600; }
+  .mix-total { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; text-align: right; }
+  .mix-bar { display: flex; height: 38px; overflow: hidden; }
+  .mix-segment { display: flex; align-items: center; justify-content: center; min-width: 2px; color: var(--white); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; }
+  .mix-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin-top: 20px; color: var(--muted); font-size: 10px; }
+  .key-swatch { display: inline-block; width: 9px; height: 9px; margin-right: 6px; }
+  .rank-row { display: grid; grid-template-columns: 104px 1fr 24px; align-items: center; gap: 9px; margin: 13px 0; font-size: 11px; }
+  .rank-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rank-track { height: 12px; background: var(--soft); }
+  .rank-fill { height: 100%; background: var(--ink); }
+  .rank-row:first-of-type .rank-fill { background: var(--accent); }
+  .rank-value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-align: right; }
+
+  .method { display: grid; grid-template-columns: 70px 1fr; padding-top: 20px; border-top: 2px solid var(--ink); }
+  .method-title { color: var(--accent); font-size: 10px; }
+  .method-body { color: var(--muted); font-size: 11px; }
+  .method-body p { margin: 0 0 8px; }
+  details { margin-top: 16px; }
+  summary { cursor: pointer; color: var(--ink); font-size: 11px; }
+  .data-scroll { max-height: 430px; overflow: auto; margin-top: 12px; border: 1px solid var(--line); background: var(--white); }
+  table { width: 100%; border-collapse: collapse; font-size: 10px; }
+  th, td { padding: 7px 9px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+  th { position: sticky; top: 0; background: var(--ink); color: var(--white); }
+  td a { color: var(--accent); }
+  @media (max-width: 800px) {
+    .hero { padding: 30px 24px 0; }
+    main { padding: 30px 24px; }
+    .metrics { grid-template-columns: 1fr 1fr; }
+    .metric:nth-child(3) { border-left: 0; border-top: 1px solid #52605a; }
+    .metric:nth-child(4) { border-top: 1px solid #52605a; }
+    .executive, .figure-head, .method { grid-template-columns: 42px 1fr; }
+    .executive p { font-size: 20px; }
+    .two-charts { grid-template-columns: 1fr; }
+    .chart-block + .chart-block { border-left: 0; border-top: 1px solid var(--line); }
+  }
+  @media (max-width: 480px) {
+    .hero h1 { margin-top: 30px; }
+    .hero-deck { font-size: 14px; }
+    .metric-value { font-size: 25px; }
+    .metric + .metric { padding-left: 14px; }
+    .figure h2 { font-size: 23px; }
+    .chart-note { flex-direction: column; gap: 3px; }
+  }
+</style>
+</head>
+<body>
+<div class="report">
+  <main>
+    <section class="figure">
+      <div class="figure-head">
+        <div class="fig-no">图 01</div>
+        <div><h2>长期在场者，与新进入者</h2><p class="standfirst">Microsoft、Google、VMware 等公司跨越多个技术周期；Databricks、FriendliAI、MangoBoost 集中在近年出现。每个色块是一次有官方记录的出现。</p></div>
+      </div>
+      <div class="chart">
+        <div class="chart-kicker">SELECTED COMPANY TRAJECTORIES / 代表公司轨迹</div>
+        <div class="matrix-scroll"><div class="matrix" id="matrix"></div></div>
+        <div class="matrix-key"><span><b>O</b> OSDI</span><span><b>S</b> SOSP</span><span><b>N</b> NSDI</span><span><b>E</b> EuroSys</span><span>右侧数字 = 样本内出现次数</span></div>
+      </div>
+      <div class="chart-note"><span>点击色块打开对应年份的官方赞助页。</span><span>仅展示 17 家具有不同时间特征的公司。</span></div>
+    </section>
+
+    <section class="figure">
+      <div class="figure-head">
+        <div class="fig-no">图 02</div>
+        <div><h2>同一会议，产业组合已经改变</h2><p class="standfirst">OSDI 2002 的样本仍以硬件与工业研究为主；OSDI 2026 已形成硬件、基础设施、平台、数据与 AI 的多层组合。</p></div>
+      </div>
+      <div class="chart two-charts">
+        <div class="chart-block">
+          <h3>OSDI 赞助样本构成</h3><p class="sub">按技术方向统计，百分比按当年记录数计算</p>
+          <div id="composition"></div>
+          <div class="mix-legend" id="mixLegend"></div>
+        </div>
+        <div class="chart-block">
+          <h3>哪些公司出现得最频繁</h3><p class="sub">全部代表样本，按出现次数排序</p>
+          <div id="ranking"></div>
+        </div>
+      </div>
+      <div class="chart-note"><span>构成描述赞助者类型，不代表出资金额或市场份额。</span></div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  const URL = {
+    sosp97: 'https://web.archive.org/web/19990127171042/http://www.cs.washington.edu:80/SOSP16/',
+    sosp99: 'https://www.sigops.org/s/conferences/sosp/1999/sosp99-summary/index.html',
+    sosp01: 'https://www.sosp.org/2001/',
+    sosp03: 'https://www.cs.rochester.edu/meetings/sosp2003/',
+    sosp05: 'https://www.sigops.org/s/conferences/sosp/2005/default.htm',
+    sosp07: 'https://www.sigops.org/s/conferences/sosp/2007/',
+    sosp09: 'https://www.sigops.org/s/conferences/sosp/2009/sponsors.html',
+    sosp11: 'https://sigops.org/s/conferences/sosp/2011/sponsors/',
+    sosp13: 'https://www.sigops.org/s/conferences/sosp/2013/sponsors.html',
+    sosp15: 'https://www.sigops.org/s/conferences/sosp/2015/sponsors/index.html',
+    sosp19: 'https://www.sigops.org/s/conferences/sosp/2019/sponsors.html',
+    sosp21: 'https://sosp2021.mpi-sws.org/sponsors.html',
+    sosp23: 'https://sosp2023.mpi-sws.org/sponsors.html',
+    sosp24: 'https://sigops.org/s/conferences/sosp/2024/#sponsors',
+    osdi02: 'https://www.usenix.org/legacy/events/osdi02/sponsors.html',
+    osdi04: 'https://www.usenix.org/legacy/events/osdi04/',
+    nsdi04: 'https://www.usenix.org/legacy/events/nsdi04/sponsors.html',
+    osdi06: 'https://www.usenix.org/legacy/events/osdi06/',
+    osdi08: 'https://www.usenix.org/legacy/events/osdi08/sponsors.html',
+    euro10: 'https://web.archive.org/web/20100901174209/http://eurosys2010.sigops-france.fr/sponsors.html',
+    euro15: 'https://eurosys2015.labri.fr/',
+    nsdi15: 'https://www.usenix.org/conference/nsdi15',
+    osdi16: 'https://www.usenix.org/conference/osdi16',
+    sosp17: 'https://www.sigops.org/s/conferences/sosp/2017/sponsors.html',
+    osdi18: 'https://www.usenix.org/conference/osdi18',
+    osdi20: 'https://www.usenix.org/conference/osdi20',
+    osdi22: 'https://www.usenix.org/conference/osdi22',
+    osdi23: 'https://www.usenix.org/conference/osdi23',
+    nsdi23: 'https://www.usenix.org/conference/nsdi23',
+    osdi24: 'https://www.usenix.org/conference/osdi24',
+    osdi25: 'https://www.usenix.org/conference/osdi25',
+    sosp25: 'https://sigops.org/s/conferences/sosp/2025/#sponsors',
+    nsdi25: 'https://www.usenix.org/conference/nsdi25',
+    euro25: 'https://2025.eurosys.org/',
+    osdi10: 'https://www.usenix.org/legacy/events/osdi10/sponsors.html',
+    osdi12: 'https://www.usenix.org/conference/osdi12/sponsors',
+    osdi14: 'https://www.usenix.org/conference/osdi14',
+    osdi21: 'https://www.usenix.org/conference/osdi21',
+    euro06: 'https://web.archive.org/web/20060404104337/http://www.cs.kuleuven.ac.be:80/conference/EuroSys2006/',
+    euro07: 'https://web.archive.org/web/20081119154535/http://www.eurosys.org/2007',
+    euro08: 'https://web.archive.org/web/20080422200440/http://www.dcs.gla.ac.uk:80/Conferences/EuroSys2008/',
+    euro09: 'https://web.archive.org/web/20091127073501/http://eurosys2009.informatik.uni-erlangen.de:80/organisation/sponsors.html',
+    euro11: 'https://eurosys2011.cs.uni-salzburg.at/welcome.html',
+    euro12: 'https://web.archive.org/web/20130416214808/http://www1.unine.ch/eurosys2012/',
+    euro13: 'http://eurosys2013.tudos.org/sponsors.html',
+    euro14: 'https://web.archive.org/web/20140424033144/http://eurosys2014.vu.nl/',
+    euro16: 'https://web.archive.org/web/20160515123619/http://eurosys16.doc.ic.ac.uk/',
+    euro17: 'https://eurosys2017.github.io/',
+    euro18: 'https://web.archive.org/web/20180809032202/http://eurosys2018.org/',
+    euro19: 'https://web.archive.org/web/20190701235226/https://eurosys2019.org/',
+    euro20: 'https://2020.eurosys.org/',
+    euro21: 'https://2021.eurosys.org/sponsors.html',
+    euro22: 'https://2022.eurosys.org/',
+    euro23: 'https://2023.eurosys.org/sponsors.html',
+    euro24: 'https://2024.eurosys.org/sponsors.html',
+    osdi26: 'https://www.usenix.org/conference/osdi26#sponsorship',
+    nsdi26: 'https://www.usenix.org/conference/nsdi26#sponsorship',
+    sosp26: 'https://www.sigops.org/s/conferences/sosp/2026/#sponsors',
+    euro26: 'https://2026.eurosys.org/sponsors.html'
+  };
+  const lanes = {
+    hardware: { name: '计算硬件与工业研究', color: 'var(--hardware)' },
+    infra: { name: '网络、存储与虚拟化', color: 'var(--infra)' },
+    platform: { name: '互联网、云与在线服务', color: 'var(--platform)' },
+    data: { name: '数据、金融与 AI 基础设施', color: 'var(--data)' }
+  };
+  const records = [];
+  function add(year, conf, lane, companies, url) {
+    companies.forEach(company => records.push({ year, conf, lane, company, url }));
+  }
+  add(1997, 'SOSP', 'hardware', ['Chorus', 'IBM', 'Microsoft', 'Mitsubishi Electric'], URL.sosp97);
+  add(1997, 'SOSP', 'infra', ['France Telecom'], URL.sosp97);
+  add(1999, 'SOSP', 'hardware', ['Compaq', 'HP', 'IBM', 'Lucent Bell Labs', 'Mercury Computer Systems', 'Microsoft', 'Xerox PARC'], URL.sosp99);
+  add(2002, 'OSDI', 'hardware', ['Microsoft', 'HP', 'Intel'], URL.osdi02);
+  add(2002, 'OSDI', 'platform', ['Google'], URL.osdi02);
+  add(2004, 'OSDI', 'hardware', ['IBM', 'Intel', 'Microsoft', 'NTT DoCoMo'], URL.osdi04);
+  add(2004, 'OSDI', 'infra', ['VMware'], URL.osdi04);
+  add(2004, 'OSDI', 'platform', ['Google'], URL.osdi04);
+  add(2004, 'NSDI', 'hardware', ['NTT DoCoMo', 'HP', 'Intel'], URL.nsdi04);
+  add(2006, 'OSDI', 'hardware', ['Sun Microsystems', 'HP', 'IBM', 'Intel', 'Microsoft'], URL.osdi06);
+  add(2006, 'OSDI', 'infra', ['VMware'], URL.osdi06);
+  add(2006, 'OSDI', 'platform', ['Amazon / AWS', 'Ask Jeeves', 'Yahoo', 'Google'], URL.osdi06);
+  add(2008, 'OSDI', 'hardware', ['AMD', 'HP', 'Intel', 'Sun Microsystems', 'IBM'], URL.osdi08);
+  add(2008, 'OSDI', 'infra', ['VMware'], URL.osdi08);
+  add(2008, 'OSDI', 'platform', ['Google', 'Yahoo', 'Microsoft'], URL.osdi08);
+  add(2008, 'OSDI', 'data', ['Aster Data'], URL.osdi08);
+  add(2010, 'EuroSys', 'hardware', ['AMD', 'Intel', 'IBM', 'Microsoft'], URL.euro10);
+  add(2010, 'EuroSys', 'infra', ['VMware'], URL.euro10);
+  add(2010, 'EuroSys', 'platform', ['Google'], URL.euro10);
+  add(2015, 'EuroSys', 'hardware', ['HP', 'Intel', 'Microsoft', 'Oracle'], URL.euro15);
+  add(2015, 'EuroSys', 'infra', ['Huawei', 'Cisco', 'VMware'], URL.euro15);
+  add(2015, 'EuroSys', 'platform', ['Google'], URL.euro15);
+  add(2015, 'NSDI', 'hardware', ['HP', 'Microsoft'], URL.nsdi15);
+  add(2015, 'NSDI', 'infra', ['Cisco Meraki', 'Akamai', 'VMware'], URL.nsdi15);
+  add(2015, 'NSDI', 'platform', ['Google', 'Meta / Facebook'], URL.nsdi15);
+  add(2016, 'OSDI', 'hardware', ['Apple', 'Microsoft'], URL.osdi16);
+  add(2016, 'OSDI', 'infra', ['Huawei', 'NetApp', 'VMware'], URL.osdi16);
+  add(2016, 'OSDI', 'platform', ['Google', 'Amazon / AWS', 'Meta / Facebook'], URL.osdi16);
+  add(2017, 'SOSP', 'hardware', ['Intel', 'IBM', 'Oracle', 'HPE'], URL.sosp17);
+  add(2017, 'SOSP', 'infra', ['Huawei', 'VMware'], URL.sosp17);
+  add(2017, 'SOSP', 'platform', ['Alibaba', 'Baidu', 'Tencent', 'Didi', 'Meta / Facebook', 'Google', 'Amazon / AWS', 'Uber'], URL.sosp17);
+  add(2018, 'OSDI', 'hardware', ['Apple'], URL.osdi18);
+  add(2018, 'OSDI', 'infra', ['NetApp', 'VMware'], URL.osdi18);
+  add(2018, 'OSDI', 'platform', ['Alibaba', 'Ant Group', 'Amazon / AWS', 'ByteDance', 'Meta / Facebook', 'Google', 'Microsoft'], URL.osdi18);
+  add(2020, 'OSDI', 'hardware', ['Apple'], URL.osdi20);
+  add(2020, 'OSDI', 'infra', ['VMware'], URL.osdi20);
+  add(2020, 'OSDI', 'platform', ['Alibaba', 'Ant Group', 'Amazon / AWS', 'ByteDance', 'Meta / Facebook', 'Google', 'Microsoft'], URL.osdi20);
+  add(2022, 'OSDI', 'hardware', ['Apple', 'IBM', 'Microsoft'], URL.osdi22);
+  add(2022, 'OSDI', 'infra', ['Akamai', 'Futurewei', 'VMware'], URL.osdi22);
+  add(2022, 'OSDI', 'platform', ['Amazon / AWS', 'Google', 'Meta / Facebook', 'ByteDance', 'Baidu'], URL.osdi22);
+  add(2022, 'OSDI', 'data', ['Two Sigma'], URL.osdi22);
+  add(2023, 'OSDI', 'infra', ['Akamai', 'Futurewei', 'NetApp', 'VMware'], URL.osdi23);
+  add(2023, 'OSDI', 'platform', ['Amazon / AWS', 'Google', 'Meta / Facebook', 'Roblox'], URL.osdi23);
+  add(2023, 'OSDI', 'data', ['Databricks', 'Jane Street'], URL.osdi23);
+  add(2023, 'NSDI', 'infra', ['Futurewei'], URL.nsdi23);
+  add(2023, 'NSDI', 'platform', ['Amazon / AWS', 'Meta / Facebook', 'ByteDance', 'Google', 'Microsoft'], URL.nsdi23);
+  add(2024, 'OSDI', 'infra', ['Futurewei', 'NetApp', 'VMware', 'Alibaba'], URL.osdi24);
+  add(2024, 'OSDI', 'platform', ['Amazon / AWS', 'Google', 'Meta / Facebook', 'Roblox', 'Microsoft'], URL.osdi24);
+  add(2024, 'OSDI', 'data', ['Databricks', 'Jane Street', 'Bloomberg'], URL.osdi24);
+  add(2025, 'OSDI', 'hardware', ['Microsoft'], URL.osdi25);
+  add(2025, 'OSDI', 'infra', ['Futurewei', 'NetApp', 'Netpreme'], URL.osdi25);
+  add(2025, 'OSDI', 'platform', ['Amazon / AWS', 'ByteDance', 'Google', 'Meta / Facebook'], URL.osdi25);
+  add(2025, 'OSDI', 'data', ['Databricks', 'Jane Street'], URL.osdi25);
+  add(2025, 'SOSP', 'hardware', ['Samsung', 'Microsoft'], URL.sosp25);
+  add(2025, 'SOSP', 'infra', ['Huawei', 'Akamai', 'Naver Cloud', 'Undo'], URL.sosp25);
+  add(2025, 'SOSP', 'platform', ['Amazon / AWS', 'ByteDance', 'Google', 'Roblox'], URL.sosp25);
+  add(2025, 'SOSP', 'data', ['42dot', 'MangoBoost', 'FriendliAI'], URL.sosp25);
+  add(2025, 'NSDI', 'hardware', ['Microsoft'], URL.nsdi25);
+  add(2025, 'NSDI', 'infra', ['Futurewei', 'Akamai', 'NetApp'], URL.nsdi25);
+  add(2025, 'NSDI', 'platform', ['ByteDance', 'Meta / Facebook', 'Google'], URL.nsdi25);
+  add(2025, 'EuroSys', 'hardware', ['Arm', 'AMD', 'Samsung', 'SK hynix', 'Intel', 'Western Digital', 'Qualcomm'], URL.euro25);
+  add(2025, 'EuroSys', 'infra', ['Huawei', 'VMware', 'Red Hat'], URL.euro25);
+  add(2025, 'EuroSys', 'platform', ['Microsoft', 'Amazon / AWS', 'Google'], URL.euro25);
+  add(2025, 'EuroSys', 'data', ['MangoBoost'], URL.euro25);
+
+  add(2001, 'SOSP', 'hardware', ['Microsoft', 'Intel', 'QUALCOMM', 'Mercury Computer Systems', 'HP'], URL.sosp01);
+  add(2001, 'SOSP', 'infra', ['CDS Technologies', 'Akamai'], URL.sosp01);
+  add(2001, 'SOSP', 'platform', ['Inktomi'], URL.sosp01);
+  add(2003, 'SOSP', 'hardware', ['HP', 'Microsoft', 'IBM', 'Intel'], URL.sosp03);
+  add(2003, 'SOSP', 'infra', ['VMware'], URL.sosp03);
+  add(2003, 'SOSP', 'platform', ['Google'], URL.sosp03);
+  add(2005, 'SOSP', 'hardware', ['Microsoft', 'Infosys', 'HP', 'IBM', 'Intel', 'DoCoMo Labs'], URL.sosp05);
+  add(2005, 'SOSP', 'infra', ['VMware'], URL.sosp05);
+  add(2005, 'SOSP', 'platform', ['Google', 'Fast Search', 'Yahoo'], URL.sosp05);
+  add(2005, 'SOSP', 'data', ['Barclays'], URL.sosp05);
+  add(2007, 'SOSP', 'hardware', ['HP', 'Infosys', 'Intel', 'Microsoft', 'IBM', 'Sun Microsystems'], URL.sosp07);
+  add(2007, 'SOSP', 'infra', ['VMware'], URL.sosp07);
+  add(2007, 'SOSP', 'platform', ['Google', 'Yahoo'], URL.sosp07);
+  add(2009, 'SOSP', 'hardware', ['HP', 'IBM', 'Microsoft', 'Intel'], URL.sosp09);
+  add(2009, 'SOSP', 'infra', ['VMware'], URL.sosp09);
+  add(2009, 'SOSP', 'platform', ['Yahoo', 'Google'], URL.sosp09);
+  add(2009, 'SOSP', 'data', ['Aster Data'], URL.sosp09);
+  add(2011, 'SOSP', 'hardware', ['Microsoft', 'Infosys', 'HP', 'Intel', 'IBM'], URL.sosp11);
+  add(2011, 'SOSP', 'infra', ['VMware', 'NetApp', 'Citrix', 'Akamai'], URL.sosp11);
+  add(2011, 'SOSP', 'platform', ['Google', 'Meta / Facebook'], URL.sosp11);
+  add(2013, 'SOSP', 'hardware', ['Apple', 'Microsoft', 'HP', 'Intel', 'IBM', 'Oracle'], URL.sosp13);
+  add(2013, 'SOSP', 'infra', ['Cisco', 'NetApp', 'Akamai', 'Symantec', 'VMware', 'Bromium'], URL.sosp13);
+  add(2013, 'SOSP', 'platform', ['Google', 'Meta / Facebook'], URL.sosp13);
+  add(2015, 'SOSP', 'hardware', ['HP', 'Intel', 'Microsoft', 'IBM', 'Oracle'], URL.sosp15);
+  add(2015, 'SOSP', 'infra', ['Cisco', 'Datrium', 'VMware', 'Akamai', 'Bromium', 'Coho Data'], URL.sosp15);
+  add(2015, 'SOSP', 'platform', ['Meta / Facebook', 'Google', 'Amazon / AWS'], URL.sosp15);
+  add(2015, 'SOSP', 'data', ['Cloudera'], URL.sosp15);
+  add(2019, 'SOSP', 'infra', ['Huawei', 'Akamai', 'NetApp', 'VMware'], URL.sosp19);
+  add(2019, 'SOSP', 'platform', ['Meta / Facebook', 'Amazon / AWS', 'Ant Group', 'ByteDance', 'Google', 'Microsoft', 'Twitter'], URL.sosp19);
+  add(2021, 'SOSP', 'hardware', ['Apple', 'Microsoft', 'HPE'], URL.sosp21);
+  add(2021, 'SOSP', 'infra', ['Huawei', 'Akamai', 'VMware', 'Exotanium'], URL.sosp21);
+  add(2021, 'SOSP', 'platform', ['Amazon / AWS', 'Meta / Facebook', 'Twitter', 'Ant Group', 'ByteDance', 'Google', 'Meituan', 'Baidu'], URL.sosp21);
+  add(2021, 'SOSP', 'data', ['IMO Ventures', 'Katana Graph'], URL.sosp21);
+  add(2023, 'SOSP', 'hardware', ['Microsoft', 'Apple', 'HPE'], URL.sosp23);
+  add(2023, 'SOSP', 'infra', ['Huawei', 'Akamai', 'VMware', 'Exotanium'], URL.sosp23);
+  add(2023, 'SOSP', 'platform', ['Amazon / AWS', 'Meta / Facebook', 'Twitter', 'Google', 'Roblox', 'Ant Group', 'ByteDance', 'Meituan', 'Baidu'], URL.sosp23);
+  add(2023, 'SOSP', 'data', ['IMO Ventures', 'Katana Graph'], URL.sosp23);
+  add(2024, 'SOSP', 'hardware', ['Apple', 'Microsoft'], URL.sosp24);
+  add(2024, 'SOSP', 'infra', ['Futurewei', 'Akamai', 'Undo'], URL.sosp24);
+  add(2024, 'SOSP', 'platform', ['Amazon / AWS', 'Meta / Facebook', 'Google', 'Ant Group', 'Roblox'], URL.sosp24);
+
+  add(2026, 'OSDI', 'hardware', ['Apple', 'Microsoft'], URL.osdi26);
+  add(2026, 'OSDI', 'infra', ['Futurewei', 'Netpreme', 'NetApp'], URL.osdi26);
+  add(2026, 'OSDI', 'platform', ['Amazon / AWS', 'Alibaba', 'ByteDance', 'Meta / Facebook', 'Google'], URL.osdi26);
+  add(2026, 'OSDI', 'data', ['Databricks', 'Jane Street'], URL.osdi26);
+  add(2026, 'NSDI', 'hardware', ['Microsoft'], URL.nsdi26);
+  add(2026, 'NSDI', 'infra', ['Futurewei', 'Netpreme', 'Akamai'], URL.nsdi26);
+  add(2026, 'NSDI', 'platform', ['Amazon / AWS', 'Meta / Facebook', 'Google'], URL.nsdi26);
+  add(2026, 'NSDI', 'data', ['Baseten', 'Jane Street'], URL.nsdi26);
+  add(2026, 'SOSP', 'hardware', ['Microsoft', 'Li Auto', 'NVIDIA'], URL.sosp26);
+  add(2026, 'SOSP', 'infra', ['Huawei', 'Akamai', 'VMware'], URL.sosp26);
+  add(2026, 'SOSP', 'platform', ['Ant Group', 'ByteDance', 'Google', 'Meta / Facebook'], URL.sosp26);
+  add(2026, 'SOSP', 'data', ['Jane Street', 'Helsing', 'Innomatrix', 'MiniMax'], URL.sosp26);
+  add(2026, 'EuroSys', 'hardware', ['Signaloid'], URL.euro26);
+  add(2026, 'EuroSys', 'infra', ['Huawei', 'GitLab'], URL.euro26);
+  add(2026, 'EuroSys', 'platform', ['Tencent', 'Alibaba', 'ByteDance', 'Google'], URL.euro26);
+
+  add(2010, 'OSDI', 'hardware', ['Infosys', 'HP', 'IBM', 'Intel', 'Microsoft'], URL.osdi10);
+  add(2010, 'OSDI', 'infra', ['VMware'], URL.osdi10);
+  add(2010, 'OSDI', 'platform', ['Google', 'Meta / Facebook', 'Yahoo'], URL.osdi10);
+  add(2012, 'OSDI', 'hardware', ['Microsoft', 'Infosys', 'HP', 'IBM', 'Oracle', 'Violin Memory'], URL.osdi12);
+  add(2012, 'OSDI', 'infra', ['EMC', 'Bromium', 'NetApp', 'VMware', 'Akamai', 'Symantec'], URL.osdi12);
+  add(2012, 'OSDI', 'platform', ['Google', 'Meta / Facebook', 'Yahoo'], URL.osdi12);
+  add(2014, 'OSDI', 'hardware', ['Microsoft', 'Huawei', 'HP', 'IBM', 'Oracle'], URL.osdi14);
+  add(2014, 'OSDI', 'infra', ['NetApp', 'VMware', 'Akamai'], URL.osdi14);
+  add(2014, 'OSDI', 'platform', ['Google', 'Meta / Facebook', 'Yahoo'], URL.osdi14);
+  add(2021, 'OSDI', 'hardware', ['Microsoft', 'IBM', 'HPE'], URL.osdi21);
+  add(2021, 'OSDI', 'infra', ['Futurewei', 'VMware', 'Exotanium'], URL.osdi21);
+  add(2021, 'OSDI', 'platform', ['Amazon / AWS', 'ByteDance', 'Meta / Facebook', 'Google', 'Baidu'], URL.osdi21);
+  add(2021, 'OSDI', 'data', ['Two Sigma'], URL.osdi21);
+
+  add(2006, 'EuroSys', 'hardware', ['HP', 'Microsoft'], URL.euro06);
+  add(2007, 'EuroSys', 'hardware', ['HP', 'IBM', 'Microsoft'], URL.euro07);
+  add(2007, 'EuroSys', 'infra', ['VMware'], URL.euro07);
+  add(2007, 'EuroSys', 'platform', ['Google'], URL.euro07);
+  add(2008, 'EuroSys', 'hardware', ['Microsoft', 'HP', 'IBM'], URL.euro08);
+  add(2008, 'EuroSys', 'platform', ['Google'], URL.euro08);
+  add(2009, 'EuroSys', 'hardware', ['IBM', 'Microsoft', 'AMD', 'HP'], URL.euro09);
+  add(2009, 'EuroSys', 'infra', ['VMware', 'Telefónica', 'sepp.med'], URL.euro09);
+  add(2009, 'EuroSys', 'platform', ['Google', 'Yahoo', 'amiando'], URL.euro09);
+  add(2010, 'EuroSys', 'hardware', ['Technicolor'], URL.euro10);
+  add(2010, 'EuroSys', 'infra', ['Theoris', 'Alcatel-Lucent', 'ClusterVision'], URL.euro10);
+  add(2010, 'EuroSys', 'data', ['Aster Data'], URL.euro10);
+  add(2011, 'EuroSys', 'hardware', ['Microsoft'], URL.euro11);
+  add(2011, 'EuroSys', 'infra', ['VMware'], URL.euro11);
+  add(2011, 'EuroSys', 'platform', ['Google'], URL.euro11);
+  add(2012, 'EuroSys', 'hardware', ['Microsoft'], URL.euro12);
+  add(2012, 'EuroSys', 'infra', ['VMware', 'SI', 'MICS', 'Telefónica', 'byte.nl'], URL.euro12);
+  add(2012, 'EuroSys', 'platform', ['Google'], URL.euro12);
+  add(2012, 'EuroSys', 'data', ['Credit Suisse'], URL.euro12);
+  add(2013, 'EuroSys', 'hardware', ['Microsoft', 'Oracle'], URL.euro13);
+  add(2013, 'EuroSys', 'infra', ['VMware', 'Bromium', 'Citrix'], URL.euro13);
+  add(2013, 'EuroSys', 'platform', ['Google', 'Meta / Facebook'], URL.euro13);
+  add(2014, 'EuroSys', 'hardware', ['Microsoft', 'Oracle'], URL.euro14);
+  add(2014, 'EuroSys', 'infra', ['VMware', 'Cisco'], URL.euro14);
+  add(2014, 'EuroSys', 'platform', ['Google', 'Meta / Facebook'], URL.euro14);
+  add(2015, 'EuroSys', 'hardware', ['Technicolor'], URL.euro15);
+  add(2015, 'EuroSys', 'infra', ['Bromium'], URL.euro15);
+  add(2015, 'EuroSys', 'platform', ['Meta / Facebook'], URL.euro15);
+  add(2016, 'EuroSys', 'hardware', ['Apple', 'HPE', 'Microsoft', 'Oracle'], URL.euro16);
+  add(2016, 'EuroSys', 'infra', ['Cisco', 'VMware', 'NetApp', 'Red Hat', 'Technicolor'], URL.euro16);
+  add(2016, 'EuroSys', 'platform', ['Meta / Facebook', 'Google'], URL.euro16);
+  add(2017, 'EuroSys', 'hardware', ['Microsoft', 'IBM', 'Intel', 'Oracle', 'Arm'], URL.euro17);
+  add(2017, 'EuroSys', 'infra', ['Cisco', 'VMware', 'Red Hat', 'Levi9'], URL.euro17);
+  add(2017, 'EuroSys', 'platform', ['Google', 'Nordeus'], URL.euro17);
+  add(2017, 'EuroSys', 'data', ['Seven Bridges'], URL.euro17);
+  add(2018, 'EuroSys', 'hardware', ['Microsoft', 'IBM', 'Arm'], URL.euro18);
+  add(2018, 'EuroSys', 'infra', ['VMware', 'Red Hat', 'Oracle', 'Maxdata', 'Wavecom'], URL.euro18);
+  add(2018, 'EuroSys', 'platform', ['Meta / Facebook', 'Google', 'OutSystems', 'Cabify'], URL.euro18);
+  add(2018, 'EuroSys', 'data', ['Natixis'], URL.euro18);
+  add(2019, 'EuroSys', 'hardware', ['IBM'], URL.euro19);
+  add(2019, 'EuroSys', 'infra', ['VMware', 'Red Hat', 'Huawei', 'Oracle', 'TraceTronic', 'Silistra'], URL.euro19);
+  add(2019, 'EuroSys', 'platform', ['Amazon / AWS', 'Microsoft', 'Meta / Facebook', 'Uber', 'Google'], URL.euro19);
+  add(2020, 'EuroSys', 'hardware', ['Microsoft', 'Oracle'], URL.euro20);
+  add(2020, 'EuroSys', 'infra', ['VMware', 'Red Hat'], URL.euro20);
+  add(2020, 'EuroSys', 'platform', ['Meta / Facebook', 'Google'], URL.euro20);
+  add(2021, 'EuroSys', 'hardware', ['Apple', 'Intel', 'Oracle', 'Arm', 'Codeplay'], URL.euro21);
+  add(2021, 'EuroSys', 'infra', ['Huawei', 'VMware', 'Red Hat', 'Cisco'], URL.euro21);
+  add(2021, 'EuroSys', 'platform', ['Microsoft', 'Meta / Facebook', 'Google', 'Meituan'], URL.euro21);
+  add(2022, 'EuroSys', 'hardware', ['Intel', 'Oracle'], URL.euro22);
+  add(2022, 'EuroSys', 'infra', ['Huawei', 'Stormshield', 'Red Hat', 'Protocol Labs Research'], URL.euro22);
+  add(2022, 'EuroSys', 'platform', ['Microsoft', 'Amazon / AWS', 'Meta / Facebook', 'Google'], URL.euro22);
+  add(2023, 'EuroSys', 'infra', ['Huawei', 'Red Hat', 'VMware', 'Oracle'], URL.euro23);
+  add(2023, 'EuroSys', 'platform', ['Meta / Facebook', 'Ant Group', 'Google'], URL.euro23);
+  add(2024, 'EuroSys', 'infra', ['Huawei', 'Red Hat'], URL.euro24);
+  add(2024, 'EuroSys', 'platform', ['Ant Group', 'Google'], URL.euro24);
+  add(2022, 'EuroSys', 'infra', ['Cisco'], URL.euro22);
+  add(2025, 'EuroSys', 'data', ['ING'], URL.euro25);
+
+  add(2004, 'OSDI', 'hardware', ['HP'], URL.osdi04);
+  add(2006, 'OSDI', 'hardware', ['Infosys', 'NTT DoCoMo', 'FAST'], URL.osdi06);
+  add(2008, 'OSDI', 'hardware', ['Infosys'], URL.osdi08);
+  add(2016, 'OSDI', 'hardware', ['HPE', 'IBM', 'Oracle'], URL.osdi16);
+  add(2016, 'OSDI', 'infra', ['Symantec'], URL.osdi16);
+  add(2018, 'OSDI', 'hardware', ['IBM', 'Oracle'], URL.osdi18);
+  add(2018, 'OSDI', 'data', ['Two Sigma'], URL.osdi18);
+  add(2022, 'OSDI', 'infra', ['Exotanium', 'NetApp'], URL.osdi22);
+  add(2022, 'OSDI', 'platform', ['Moloco'], URL.osdi22);
+  add(2023, 'OSDI', 'hardware', ['IBM'], URL.osdi23);
+  add(2023, 'OSDI', 'platform', ['Baidu'], URL.osdi23);
+  add(2024, 'OSDI', 'hardware', ['IBM'], URL.osdi24);
+  add(2024, 'OSDI', 'platform', ['Baidu'], URL.osdi24);
+  add(2024, 'OSDI', 'data', ['Two Sigma'], URL.osdi24);
+  add(2020, 'OSDI', 'hardware', ['Oracle'], URL.osdi20);
+  add(2020, 'OSDI', 'data', ['Two Sigma'], URL.osdi20);
+
+  records.sort((a, b) => a.year - b.year || a.conf.localeCompare(b.conf) || a.company.localeCompare(b.company));
+  const years = [...new Set(records.map(record => record.year))].sort((a, b) => a - b);
+  const confCode = { OSDI: 'O', SOSP: 'S', NSDI: 'N', EuroSys: 'E' };
+  const companyCount = company => records.filter(record => record.company === company).length;
+  const trajectoryCompanies = ['Microsoft', 'Google', 'Amazon / AWS', 'VMware', 'IBM', 'HP', 'Intel', 'Huawei', 'Alibaba', 'Meta / Facebook', 'ByteDance', 'Databricks', 'FriendliAI', 'MangoBoost', 'Baseten', 'MiniMax', 'NVIDIA'];
+  const matrix = document.getElementById('matrix');
+  matrix.style.setProperty('--year-count', years.length);
+  let html = '<div class="matrix-row matrix-header"><div>公司 / 年份</div>' + years.map(year => `<div class="matrix-year">${year}</div>`).join('') + '<div></div></div>';
+  trajectoryCompanies.forEach(company => {
+    html += `<div class="matrix-row"><div class="matrix-company">${company}</div>`;
+    years.forEach(year => {
+      const matches = records.filter(r => r.company === company && r.year === year);
+      if (matches.length) {
+        const labels = matches.map(r => confCode[r.conf]).join('');
+        html += `<div class="matrix-cell"><a class="matrix-mark" href="${matches[0].url}" target="_blank" rel="noopener" title="${company} · ${year} · ${matches.map(r => r.conf).join(' / ')}" aria-label="${company} ${year} ${matches.map(r => r.conf).join(' / ')}">${labels}</a></div>`;
+      } else html += '<div class="matrix-cell"></div>';
+    });
+    html += `<div class="matrix-count">${companyCount(company)}</div></div>`;
+  });
+  matrix.innerHTML = html;
+
+  const composition = document.getElementById('composition');
+  [2002, 2026].forEach(year => {
+    const sample = records.filter(r => r.conf === 'OSDI' && r.year === year);
+    const bar = Object.keys(lanes).map(lane => {
+      const count = sample.filter(r => r.lane === lane).length;
+      const pct = count / sample.length * 100;
+      return count ? `<div class="mix-segment" style="width:${pct}%;background:${lanes[lane].color}" title="${lanes[lane].name} ${count} 条">${Math.round(pct)}%</div>` : '';
+    }).join('');
+    composition.innerHTML += `<div class="mix-row"><div class="mix-year">${year}</div><div class="mix-bar">${bar}</div><div class="mix-total">n=${sample.length}</div></div>`;
+  });
+  document.getElementById('mixLegend').innerHTML = Object.values(lanes).map(lane => `<span><i class="key-swatch" style="background:${lane.color}"></i>${lane.name}</span>`).join('');
+
+  const counts = [...new Set(records.map(r => r.company))].map(company => ({ company, count: companyCount(company) })).sort((a, b) => b.count - a.count || a.company.localeCompare(b.company));
+  const top = counts.slice(0, 7);
+  const max = top[0].count;
+  document.getElementById('ranking').innerHTML = top.map(item => `<div class="rank-row"><div class="rank-name" title="${item.company}">${item.company}</div><div class="rank-track"><div class="rank-fill" style="width:${item.count / max * 100}%"></div></div><div class="rank-value">${item.count}</div></div>`).join('');
+
+  function notifyResize() {
+    if (window.parent === window) return;
+    window.parent.postMessage({ type: 'sponsor-embed-resize', height: document.documentElement.scrollHeight + 4 }, window.location.origin);
+  }
+  window.addEventListener('load', notifyResize);
+  if (window.ResizeObserver) new ResizeObserver(notifyResize).observe(document.body);
+})();
+</script>
+</body>
+</html>
